@@ -1,0 +1,6 @@
+flask
+pymongo[srv]
+sentence-transformers
+faiss-cpu
+numpy
+python-dotenv
