@@ -5,6 +5,8 @@ import asyncHandler from 'express-async-handler';
 import CandidateProfile from '../models/candidateProfile.model';
 import User from '../models/user.model';
 import { ProtectedRequest } from '../middleware/auth.middleware';
+import PushedCandidate from '../models/pushedCandidate.model';
+import Interview from '../models/interview.model';
 
 /**
  * @desc    Get candidate profile
@@ -43,4 +45,14 @@ const updateCandidateProfile = asyncHandler(async (req: ProtectedRequest, res: R
   res.status(200).json(profile);
 });
 
-export { getCandidateProfile, updateCandidateProfile };
+const getDashboardStats = asyncHandler(async (req: ProtectedRequest, res: Response) => {
+    const candidateId = req.user?._id;
+
+    const applicationsCount = await PushedCandidate.countDocuments({ candidate: candidateId });
+    const interviewsCount = await Interview.countDocuments({ candidate: candidateId });
+    const profileCompleted = req.user?.profileCompleted || false;
+
+    res.json({ applicationsCount, interviewsCount, profileCompleted });
+});
+
+export { getCandidateProfile, updateCandidateProfile, getDashboardStats };

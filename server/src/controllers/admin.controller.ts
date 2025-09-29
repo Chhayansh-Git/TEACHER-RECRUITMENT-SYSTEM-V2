@@ -125,4 +125,23 @@ const getRankedCandidates = asyncHandler(async (req: ProtectedRequest, res: Resp
   res.json(candidates);
 });
 
-export { getAllCandidates, getAllRequirements, pushCandidateToSchool, getRequirementById, getPipeline, getRankedCandidates };
+/**
+ * @desc    Get statistics for the admin dashboard
+ * @route   GET /api/admin/stats
+ * @access  Private/Admin
+ */
+const getDashboardStats = asyncHandler(async (req: ProtectedRequest, res: Response) => {
+  const totalCandidates = await User.countDocuments({ role: 'candidate' });
+  const totalSchools = await User.countDocuments({ role: 'school' });
+  const openRequirements = await Requirement.countDocuments({ status: 'open' });
+  const filledRequirements = await Requirement.countDocuments({ status: 'filled' });
+
+  res.json({
+    totalCandidates,
+    totalSchools,
+    openRequirements,
+    filledRequirements,
+  });
+});
+
+export { getAllCandidates, getAllRequirements, pushCandidateToSchool, getRequirementById, getPipeline, getRankedCandidates, getDashboardStats };

@@ -8,6 +8,7 @@ interface UserInfo {
   email: string;
   role: string;
   profileCompleted: boolean; // Add this property
+  profilePictureUrl?: string;
 }
 
 interface AuthState {

@@ -1,13 +1,19 @@
 // src/pages/school/SchoolProfilePage.tsx
 
-import { useEffect } from 'react';
-import { useForm, Controller,  type SubmitHandler } from 'react-hook-form';
+import { useEffect, useState, useRef } from 'react';
+import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
+import { useAppDispatch, useAppSelector } from '../../hooks/redux.hooks';
+import { setCredentials } from '../../app/authSlice';
+import { Link as RouterLink } from 'react-router-dom';
 
 // MUI Components
-import { Paper, Typography, TextField, Button, Grid, CircularProgress, Alert } from '@mui/material';
+import { Paper, Typography, TextField, Button, Grid, CircularProgress, Alert, Box, Avatar, IconButton } from '@mui/material';
+import PhotoCamera from '@mui/icons-material/PhotoCamera';
+
+const API_BASE_URL = 'http://localhost:5001'; // Define base URL for images
 
 type SchoolProfileInputs = {
   address: string;
@@ -33,9 +39,27 @@ const updateSchoolProfile = async (profileData: SchoolProfileInputs) => {
   return data;
 };
 
+const uploadPicture = async (file: File) => {
+  const formData = new FormData();
+  formData.append('profilePicture', file);
+  const token = localStorage.getItem('token');
+  const { data } = await api.put('/users/profile-picture', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return data;
+};
+
 export const SchoolProfilePage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const dispatch = useAppDispatch();
+  const { userInfo, token } = useAppSelector((state) => state.auth);
+  const [preview, setPreview] = useState<string | null>(userInfo?.profilePictureUrl || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const { control, handleSubmit, reset, formState: { errors } } = useForm<SchoolProfileInputs>();
 
   const { data: profileData, isLoading } = useQuery({
@@ -48,22 +72,73 @@ export const SchoolProfilePage = () => {
       reset(profileData);
     }
   }, [profileData, reset]);
+  
+  const pictureMutation = useMutation({ mutationFn: uploadPicture });
+  const profileMutation = useMutation({ mutationFn: updateSchoolProfile });
 
-  const mutation = useMutation({
-    mutationFn: updateSchoolProfile,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['schoolProfile'] });
-      navigate('/dashboard');
-    },
-  });
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setPreview(URL.createObjectURL(file));
+    }
+  };
 
-  const onSubmit: SubmitHandler<SchoolProfileInputs> = data => mutation.mutate(data);
+  const onSubmit: SubmitHandler<SchoolProfileInputs> = async (formData) => {
+    let newPictureUrl = userInfo?.profilePictureUrl;
+
+    if (fileInputRef.current?.files?.[0]) {
+      try {
+        const uploadResult = await pictureMutation.mutateAsync(fileInputRef.current.files[0]);
+        newPictureUrl = uploadResult.profilePictureUrl;
+      } catch (error) {
+        console.error("Picture upload failed", error);
+        return;
+      }
+    }
+
+    await profileMutation.mutateAsync(formData);
+
+    if (userInfo && token) {
+        const updatedUserInfo = { ...userInfo, profilePictureUrl: newPictureUrl };
+        dispatch(setCredentials({ userInfo: updatedUserInfo, token }));
+    }
+    queryClient.invalidateQueries({ queryKey: ['schoolProfile'] });
+    navigate('/dashboard');
+  };
 
   if (isLoading) return <CircularProgress />;
 
   return (
     <Paper sx={{ p: 4 }}>
-      <Typography variant="h4" gutterBottom>Manage School Profile</Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" gutterBottom>
+          Manage School Profile
+        </Typography>
+        <Button component={RouterLink} to="/dashboard">
+          Skip for now
+        </Button>
+      </Box>
+
+      {/* Profile Picture Upload UI */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
+        <input
+          accept="image/*"
+          style={{ display: 'none' }}
+          id="school-logo-upload"
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+        />
+        <label htmlFor="school-logo-upload">
+          <IconButton color="primary" aria-label="upload picture" component="span">
+            <Avatar src={preview ? (preview.startsWith('blob:') ? preview : `${API_BASE_URL}${preview}`) : undefined} sx={{ width: 120, height: 120, cursor: 'pointer' }}>
+               {!preview && <PhotoCamera sx={{ width: 50, height: 50 }} />}
+            </Avatar>
+          </IconButton>
+        </label>
+        <Button onClick={() => fileInputRef.current?.click()} sx={{mt: 1}}>Upload School Logo</Button>
+      </Box>
+
       <form onSubmit={handleSubmit(onSubmit)}>
         <Grid container spacing={3}>
           <Grid item xs={12}>
@@ -93,12 +168,12 @@ export const SchoolProfilePage = () => {
           <Grid item xs={12}>
             <Controller name="about" control={control} render={({ field }) => <TextField {...field} label="About the School (Optional)" multiline rows={4} fullWidth />} />
           </Grid>
-          {mutation.isError && (
+          {(profileMutation.isError || pictureMutation.isError) && (
             <Grid item xs={12}><Alert severity="error">Failed to update profile. Please try again.</Alert></Grid>
           )}
           <Grid item xs={12}>
-            <Button type="submit" variant="contained" disabled={mutation.isPending}>
-              {mutation.isPending ? <CircularProgress size={24} /> : 'Save Profile'}
+            <Button type="submit" variant="contained" disabled={profileMutation.isPending || pictureMutation.isPending}>
+              {(profileMutation.isPending || pictureMutation.isPending) ? <CircularProgress size={24} /> : 'Save Profile'}
             </Button>
           </Grid>
         </Grid>

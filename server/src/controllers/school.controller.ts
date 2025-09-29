@@ -5,6 +5,7 @@ import asyncHandler from 'express-async-handler';
 import PushedCandidate from '../models/pushedCandidate.model';
 import SchoolProfile from '../models/schoolProfile.model';
 import Interview from '../models/interview.model';
+import Requirement from '../models/requirement.model';
 import User from '../models/user.model';
 import sendEmail from '../utils/sendEmail';
 import { ProtectedRequest } from '../middleware/auth.middleware';
@@ -18,11 +19,11 @@ const getPushedCandidates = asyncHandler(async (req: ProtectedRequest, res: Resp
   const pushedCandidates = await PushedCandidate.find({ school: req.user?._id })
     .populate({
       path: 'candidate',
-      select: '-password', // Exclude password from the populated candidate
+      select: '-password',
     })
     .populate({
       path: 'requirement',
-      select: 'title', // Only populate the requirement title
+      select: 'title',
     })
     .sort({ createdAt: -1 });
 
@@ -39,7 +40,7 @@ const shortlistCandidate = asyncHandler(async (req: ProtectedRequest, res: Respo
 
   const pushedCandidate = await PushedCandidate.findOne({
     _id: pushId,
-    school: req.user?._id, // Ensure the school owns this record
+    school: req.user?._id,
   });
 
   if (!pushedCandidate) {
@@ -88,25 +89,18 @@ const scheduleInterview = asyncHandler(async (req: ProtectedRequest, res: Respon
   pushedCandidate.status = 'interview scheduled';
   await pushedCandidate.save();
 
-  // --- TRIGGER EMAIL NOTIFICATION ---
+  // --- TRIGGER EMAIL NOTIFICATION (CORRECTED) ---
   const candidateUser = await User.findById(pushedCandidate.candidate);
   if (candidateUser) {
-    const message = `
-      <h1>Interview Invitation</h1>
-      <p>Hello ${candidateUser.name},</p>
-      <p>You have been invited for an interview by ${req.user?.name}.</p>
-      <p><strong>Date & Time:</strong> ${new Date(interviewDate).toLocaleString()}</p>
-      <p><strong>Type:</strong> ${interviewType}</p>
-      <p><strong>Location/Link:</strong> ${locationOrLink}</p>
-      <p>Please log in to your dashboard to accept or decline this invitation.</p>
-      <p>Thank you!</p>
-    `;
-
     try {
       await sendEmail({
         to: candidateUser.email,
-        subject: 'You Have a New Interview Invitation!',
-        html: message,
+        templateKey: 'interview-scheduled-candidate',
+        payload: {
+          candidateName: candidateUser.name,
+          schoolName: req.user?.name,
+          interviewDate: new Date(interviewDate).toLocaleString(),
+        },
       });
     } catch (error) {
       console.error('Email could not be sent:', error);
@@ -128,7 +122,6 @@ const getSchoolProfile = asyncHandler(async (req: ProtectedRequest, res: Respons
   if (profile) {
     res.json(profile);
   } else {
-    // It's not an error to not have a profile yet, send an empty object
     res.json({}); 
   }
 });
@@ -151,4 +144,25 @@ const updateSchoolProfile = asyncHandler(async (req: ProtectedRequest, res: Resp
   res.status(200).json(profile);
 });
 
-export { getPushedCandidates, shortlistCandidate, scheduleInterview, getSchoolProfile, updateSchoolProfile };
+/**
+ * @desc    Get statistics for the school dashboard
+ * @route   GET /api/school/stats
+ * @access  Private/School
+ */
+const getDashboardStats = asyncHandler(async (req: ProtectedRequest, res: Response) => {
+  const schoolId = req.user?._id;
+
+  const totalRequirements = await Requirement.countDocuments({ school: schoolId });
+  const openRequirements = await Requirement.countDocuments({ school: schoolId, status: 'open' });
+  const totalPushed = await PushedCandidate.countDocuments({ school: schoolId });
+  const interviewsScheduled = await Interview.countDocuments({ school: schoolId });
+
+  res.json({
+    totalRequirements,
+    openRequirements,
+    totalPushed,
+    interviewsScheduled,
+  });
+});
+
+export { getPushedCandidates, shortlistCandidate, scheduleInterview, getSchoolProfile, updateSchoolProfile, getDashboardStats };

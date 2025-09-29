@@ -1,25 +1,56 @@
 // src/pages/candidate/EditProfilePage.tsx
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import api from '../../api';
-import { useAppSelector } from '../../hooks/redux.hooks';
+import { useAppDispatch, useAppSelector } from '../../hooks/redux.hooks';
+import { setCredentials } from '../../app/authSlice';
+import toast from 'react-hot-toast';
 
 // MUI Components
-import { Container, Paper, Stepper, Step, StepLabel, Button, Box, Typography, CircularProgress, Alert } from '@mui/material';
+import { Container, Paper, Stepper, Step, StepLabel, Button, Box, Typography, CircularProgress, Avatar, IconButton } from '@mui/material';
+import PhotoCamera from '@mui/icons-material/PhotoCamera';
 
 // Import step components
 import { PersonalInfoStep } from '../../components/candidate/PersonalInfoStep';
 import { EducationStep } from '../../components/candidate/EducationStep';
 import { ExperienceStep } from '../../components/candidate/ExperienceStep';
 import { SkillsStep } from '../../components/candidate/SkillsStep';
-import type { ProfileFormInputs } from './CompleteProfilePage'; // Reuse the type
+
+// Define and EXPORT the type so other files can use it
+export type ProfileFormInputs = {
+  phone: string;
+  address: string;
+  preferredLocations: string[];
+  education: {
+    degree: string;
+    institution: string;
+    startYear: number;
+    endYear: number;
+  }[];
+  experience: {
+    jobTitle: string;
+    company: string;
+    startDate: string;
+    endDate?: string;
+    description?: string;
+  }[];
+  skills: string[];
+};
 
 const steps = ['Personal Information', 'Education', 'Work Experience', 'Skills'];
 
-// API function to fetch current profile
+const stepFields: (keyof ProfileFormInputs)[][] = [
+  ['phone', 'address'],
+  ['education'],
+  ['experience'],
+  ['skills'],
+];
+
+const API_BASE_URL = 'http://localhost:5001';
+
 const fetchCandidateProfile = async (): Promise<ProfileFormInputs> => {
   const token = localStorage.getItem('token');
   const { data } = await api.get('/candidate/profile', {
@@ -28,7 +59,6 @@ const fetchCandidateProfile = async (): Promise<ProfileFormInputs> => {
   return data;
 };
 
-// API function to update profile (reused)
 const updateProfile = async (data: ProfileFormInputs) => {
     const token = localStorage.getItem('token');
     const { data: responseData } = await api.put('/candidate/profile', data, {
@@ -37,40 +67,91 @@ const updateProfile = async (data: ProfileFormInputs) => {
     return responseData;
 };
 
+const uploadPicture = async (file: File) => {
+  const formData = new FormData();
+  formData.append('profilePicture', file);
+  const token = localStorage.getItem('token');
+  const { data } = await api.put('/users/profile-picture', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  return data;
+};
+
 export const EditProfilePage = () => {
+  const { userInfo, token } = useAppSelector((state) => state.auth);
+  const dispatch = useAppDispatch();
   const [activeStep, setActiveStep] = useState(0);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [preview, setPreview] = useState<string | null>(userInfo?.profilePictureUrl || null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch the current profile data
   const { data: profileData, isLoading: isLoadingProfile } = useQuery<ProfileFormInputs>({
     queryKey: ['candidateProfile'],
     queryFn: fetchCandidateProfile,
   });
 
-  const methods = useForm<ProfileFormInputs>();
+  const methods = useForm<ProfileFormInputs>({ mode: 'onChange' });
 
-  // Use useEffect to populate the form once data is fetched
   useEffect(() => {
     if (profileData) {
       methods.reset(profileData);
     }
   }, [profileData, methods]);
 
-  const mutation = useMutation({
-    mutationFn: updateProfile,
-    onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['candidateProfile'] });
-        navigate('/dashboard'); // Navigate back to dashboard on success
-    },
+  const pictureMutation = useMutation({
+      mutationFn: uploadPicture,
+      onError: () => {
+          toast.error("Picture upload failed. Please ensure it's a valid image under 2MB.");
+      }
   });
 
-  const handleNext = () => setActiveStep((prev) => prev + 1);
-  const handleBack = () => setActiveStep((prev) => prev - 1);
+  const profileMutation = useMutation({
+      mutationFn: updateProfile,
+      onError: () => {
+          toast.error("An error occurred while updating your profile.");
+      }
+  });
 
-  const onSubmit = (data: ProfileFormInputs) => {
-    mutation.mutate(data);
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setPreview(URL.createObjectURL(file));
+    }
   };
+
+  const handleSave = async (formData: ProfileFormInputs) => {
+    let newPictureUrl = userInfo?.profilePictureUrl;
+
+    if (fileInputRef.current?.files?.[0]) {
+        const uploadResult = await pictureMutation.mutateAsync(fileInputRef.current.files[0]);
+        if(!uploadResult) return;
+        newPictureUrl = uploadResult.profilePictureUrl;
+    }
+
+    await profileMutation.mutateAsync(formData);
+
+    if (userInfo && token) {
+        const updatedUserInfo = { ...userInfo, profilePictureUrl: newPictureUrl };
+        dispatch(setCredentials({ userInfo: updatedUserInfo, token }));
+    }
+    queryClient.invalidateQueries({ queryKey: ['candidateProfile'] });
+    toast.success('Profile saved successfully!');
+    navigate('/dashboard');
+  };
+
+  const handleNext = async () => {
+    const fieldsToValidate = stepFields[activeStep];
+    const isValid = await methods.trigger(fieldsToValidate);
+    if (isValid) {
+      setActiveStep((prev) => prev + 1);
+    }
+  };
+
+  const handleBack = () => setActiveStep((prev) => prev - 1);
 
   const getStepContent = (step: number) => {
     switch (step) {
@@ -89,35 +170,58 @@ export const EditProfilePage = () => {
   return (
     <Container component="main" maxWidth="md" sx={{ mb: 4 }}>
       <Paper variant="outlined" sx={{ my: { xs: 3, md: 6 }, p: { xs: 2, md: 3 } }}>
-        <Typography component="h1" variant="h4" align="center">
+        <Typography component="h1" variant="h4" align="center" sx={{ mb: 2 }}>
           Edit Your Profile
         </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+          <input
+            accept="image/*"
+            style={{ display: 'none' }}
+            id="profile-picture-upload"
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />
+          <label htmlFor="profile-picture-upload">
+            <IconButton color="primary" aria-label="upload picture" component="span">
+              <Avatar src={preview ? (preview.startsWith('blob:') ? preview : `${API_BASE_URL}${preview}`) : undefined} sx={{ width: 100, height: 100, cursor: 'pointer' }}>
+                 {!preview && <PhotoCamera sx={{ width: 40, height: 40 }} />}
+              </Avatar>
+            </IconButton>
+          </label>
+          <Button onClick={() => fileInputRef.current?.click()} sx={{mt: 1}}>Change Picture</Button>
+        </Box>
         <Stepper activeStep={activeStep} sx={{ pt: 3, pb: 5 }}>
           {steps.map((label) => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
         </Stepper>
         
+        {/* --- THIS IS THE KEY CHANGE --- */}
         <FormProvider {...methods}>
-          <form onSubmit={methods.handleSubmit(onSubmit)}>
-            {getStepContent(activeStep)}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-              {activeStep !== 0 && (
+          {activeStep === steps.length - 1 ? (
+            // On the LAST step, render the FORM tag with the submit handler
+            <form onSubmit={methods.handleSubmit(handleSave)}>
+              {getStepContent(activeStep)}
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
                 <Button onClick={handleBack} sx={{ mr: 1 }}>Back</Button>
-              )}
-              {activeStep === steps.length - 1 ? (
-                <Button variant="contained" type="submit" disabled={mutation.isPending}>
-                  {mutation.isPending ? <CircularProgress size={24} /> : 'Save Changes'}
+                <Button variant="contained" type="submit" disabled={profileMutation.isPending || pictureMutation.isPending}>
+                  {(profileMutation.isPending || pictureMutation.isPending) ? <CircularProgress size={24} /> : 'Save Changes'}
                 </Button>
-              ) : (
+              </Box>
+            </form>
+          ) : (
+            // On ALL OTHER steps, render the content WITHOUT a form tag
+            <>
+              {getStepContent(activeStep)}
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+                {activeStep !== 0 && (
+                  <Button onClick={handleBack} sx={{ mr: 1 }}>Back</Button>
+                )}
                 <Button variant="contained" onClick={handleNext} type="button">Next</Button>
-              )}
-            </Box>
-          </form>
+              </Box>
+            </>
+          )}
         </FormProvider>
-
-        {mutation.isError && (
-          <Alert severity="error" sx={{ mt: 2 }}>An error occurred while updating your profile.</Alert>
-        )}
       </Paper>
     </Container>
   );
-};
+}; 

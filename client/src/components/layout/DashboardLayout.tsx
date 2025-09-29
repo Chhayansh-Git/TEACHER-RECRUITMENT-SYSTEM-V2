@@ -35,8 +35,13 @@ import HowToRegIcon from '@mui/icons-material/HowToReg';
 import EventIcon from '@mui/icons-material/Event';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
+import { Avatar } from '@mui/material';
+import EmailIcon from '@mui/icons-material/Email';
+import SettingsIcon from '@mui/icons-material/Settings';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 
 const drawerWidth = 240;
+const API_BASE_URL = 'http://localhost:5001';
 
 export const DashboardLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -67,15 +72,6 @@ export const DashboardLayout = () => {
           </ListItemButton>
         </ListItem>
 
-        <ListItem disablePadding>
-          <ListItemButton>
-            <ListItemIcon>
-              <AccountCircleIcon />
-            </ListItemIcon>
-            <ListItemText primary="Profile" />
-          </ListItemButton>
-        </ListItem>
-
         {(userInfo?.role === 'admin' || userInfo?.role === 'super-admin') && (
           <>
             <ListItem disablePadding component={RouterLink} to="/admin/candidates">
@@ -98,12 +94,39 @@ export const DashboardLayout = () => {
                 <ListItemText primary="Pipeline" />
               </ListItemButton>
             </ListItem>
+
+            <ListItem disablePadding component={RouterLink} to="/admin/email-templates">
+              <ListItemButton>
+                <ListItemIcon><EmailIcon /></ListItemIcon>
+                <ListItemText primary="Email Templates" />
+              </ListItemButton>
+            </ListItem>
+
+            <ListItem disablePadding component={RouterLink} to="/admin/settings">
+              <ListItemButton>
+                <ListItemIcon><SettingsIcon /></ListItemIcon>
+                <ListItemText primary="Settings" />
+              </ListItemButton>
+            </ListItem>
+
+            <ListItem disablePadding component={RouterLink} to="/admin/reports">
+              <ListItemButton>
+                <ListItemIcon><AssessmentIcon /></ListItemIcon>
+                <ListItemText primary="Reports" />
+              </ListItemButton>
+            </ListItem>
           </>
         )}
 
 
         {userInfo?.role === 'candidate' && (
-          <><ListItem disablePadding component={RouterLink} to="/candidate/jobs">
+          <><ListItem disablePadding component={RouterLink} to="/candidate/profile">
+              <ListItemButton>
+                <ListItemIcon><AccountCircleIcon /></ListItemIcon>
+                <ListItemText primary="View Profile" />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding component={RouterLink} to="/candidate/jobs">
             <ListItemButton>
               <ListItemIcon><WorkIcon /></ListItemIcon>
               <ListItemText primary="Job Board" />
@@ -114,17 +137,19 @@ export const DashboardLayout = () => {
                 <ListItemText primary="My Interviews" />
               </ListItemButton>
             </ListItem>
-            <ListItem disablePadding component={RouterLink} to="/candidate/profile"> {/* Make this a link */}
-              <ListItemButton>
-                <ListItemIcon><AccountCircleIcon /></ListItemIcon>
-                <ListItemText primary="Edit Profile" />
-              </ListItemButton>
-            </ListItem></>
+            </>
         )}
 
         {/* --- Role-Specific Navigation --- */}
         {userInfo?.role === 'school' && (
           <>
+            <ListItem disablePadding component={RouterLink} to="/school/profile">
+              <ListItemButton>
+                <ListItemIcon><AccountCircleIcon /></ListItemIcon>
+                <ListItemText primary="View Profile" />
+              </ListItemButton>
+            </ListItem>
+            
             <ListItem disablePadding component={RouterLink} to="/school/requirements/new">
               <ListItemButton>
                 <ListItemIcon><AddIcon /></ListItemIcon>
@@ -141,12 +166,6 @@ export const DashboardLayout = () => {
                 <ListItemIcon><HowToRegIcon /></ListItemIcon>
                 <ListItemText primary="Recommended" />
               </ListItemButton>
-            </ListItem>
-            <ListItem disablePadding component={RouterLink} to="/school/profile">
-                <ListItemButton>
-                    <ListItemIcon><AccountCircleIcon /></ListItemIcon>
-                    <ListItemText primary="Edit Profile" />
-                </ListItemButton>
             </ListItem>
             <ListItem disablePadding component={RouterLink} to="/school/subscription">
               <ListItemButton>
@@ -193,6 +212,10 @@ export const DashboardLayout = () => {
           <Typography variant="h6" noWrap component="div">
             Teacher Recruitment System
           </Typography>
+          <Box sx={{ flexGrow: 1 }} /> {/* This pushes the avatar to the right */}
+          <Avatar src={userInfo?.profilePictureUrl ? `${API_BASE_URL}${userInfo.profilePictureUrl}` : undefined}>
+            {userInfo?.name.charAt(0)}
+          </Avatar>
         </Toolbar>
       </AppBar>
       <Box

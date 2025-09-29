@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../api';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux.hooks';
 import { setCredentials } from '../../app/authSlice';
+import { Link as RouterLink } from 'react-router-dom'; 
 
 // MUI Components
 import { Container, Paper, Stepper, Step, StepLabel, Button, Box, Typography, CircularProgress, Alert } from '@mui/material';
@@ -123,9 +124,15 @@ export const CompleteProfilePage = () => {
   return (
     <Container component="main" maxWidth="md" sx={{ mb: 4 }}>
       <Paper variant="outlined" sx={{ my: { xs: 3, md: 6 }, p: { xs: 2, md: 3 } }}>
-        <Typography component="h1" variant="h4" align="center">
-          Complete Your Profile
-        </Typography>
+        {/* --- ADD THIS BOX --- */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography component="h1" variant="h4" align="center">
+            Complete Your Profile
+          </Typography>
+          <Button component={RouterLink} to="/dashboard">
+            Skip for now
+          </Button>
+        </Box>
         <Stepper activeStep={activeStep} sx={{ pt: 3, pb: 5 }}>
           {steps.map((label) => (
             <Step key={label}>

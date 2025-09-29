@@ -54,20 +54,17 @@ const respondToInterview = asyncHandler(async (req: ProtectedRequest, res: Respo
   // --- TRIGGER EMAIL NOTIFICATION TO SCHOOL ---
   const schoolUser = await User.findById(interview.school);
   if (schoolUser && candidateUser) {
-    const subject = `Interview Response: ${candidateUser.name} has ${status}`;
-    const message = `
-      <h1>Interview Response Received</h1>
-      <p>Hello ${schoolUser.name},</p>
-      <p>The candidate, <strong>${candidateUser.name}</strong>, has <strong>${status}</strong> your interview invitation scheduled for ${new Date(interview.interviewDate).toLocaleString()}.</p>
-      <p>You can view the status on your dashboard.</p>
-      <p>Thank you!</p>
-    `;
-
     try {
+      // --- THIS IS THE FIX ---
+      // We now use the templateKey and payload object
       await sendEmail({
         to: schoolUser.email,
-        subject: subject,
-        html: message,
+        templateKey: 'interview-response-school',
+        payload: {
+          schoolName: schoolUser.name,
+          candidateName: candidateUser.name,
+          status: status.toLowerCase(), // e.g., 'accepted' or 'declined'
+        },
       });
     } catch (error) {
       console.error('Email could not be sent to school:', error);

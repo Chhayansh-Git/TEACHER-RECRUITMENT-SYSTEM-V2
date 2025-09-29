@@ -4,8 +4,7 @@ import { useForm, type SubmitHandler } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import api from '../../api';
-import { useAppDispatch } from '../../hooks/redux.hooks';
-import { setCredentials } from '../../app/authSlice';
+import toast from 'react-hot-toast';
 
 // MUI Components
 import {
@@ -15,7 +14,6 @@ import {
   TextField,
   Button,
   CircularProgress,
-  Alert,
   Grid,
   Link,
   Avatar,
@@ -50,15 +48,18 @@ export const RegistrationPage = () => {
     formState: { errors },
   } = useForm<Inputs>({ defaultValues: { role: 'candidate' }});
 
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
   const mutation = useMutation({
     mutationFn: registerUser,
     onSuccess: (data) => {
-      dispatch(setCredentials({ userInfo: data, token: data.token }));
-      navigate('/dashboard');
+      toast.success('Registration successful! Please check your email for a verification code.');
+      // Redirect to the OTP page, passing the email in the state
+      navigate('/verify-email', { state: { email: data.email } });
     },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
+    }
   });
 
   const onSubmit: SubmitHandler<Inputs> = ({ name, email, password, role }) => {
@@ -150,12 +151,9 @@ export const RegistrationPage = () => {
               <FormControlLabel value="school" control={<Radio {...register('role')} />} label="School" />
             </RadioGroup>
           </FormControl>
-          {mutation.isError && (
-             <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
-                {/* @ts-ignore */}
-                {mutation.error.response?.data?.message || 'Registration failed'}
-            </Alert>
-          )}
+          
+          {/* The Alert component is removed in favor of toast notifications */}
+
           <Button
             type="submit"
             fullWidth
@@ -166,7 +164,7 @@ export const RegistrationPage = () => {
             {mutation.isPending ? <CircularProgress size={24} color="inherit" /> : 'Sign Up'}
           </Button>
           <Grid container justifyContent="flex-end">
-            <Grid>
+            <Grid item>
               <Link component={RouterLink} to="/login" variant="body2">
                 Already have an account? Sign in
               </Link>
