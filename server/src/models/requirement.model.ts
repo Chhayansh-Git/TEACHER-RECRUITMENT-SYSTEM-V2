@@ -12,9 +12,11 @@ export interface IRequirement extends Document {
   location: string;
   salary?: number;
   experienceRequired: string;
-  qualifications: string[]; // Add this
-  benefits: string[]; // Add this
+  qualifications: string[];
+  benefits: string[];
   status: 'open' | 'closed' | 'filled';
+  numberOfVacancies: number; // Add this
+  hiredCandidates: mongoose.Schema.Types.ObjectId[]; // Add this
 }
 
 const RequirementSchema: Schema<IRequirement> = new Schema({
@@ -34,14 +36,16 @@ const RequirementSchema: Schema<IRequirement> = new Schema({
   },
   location: { type: String, required: true },
   salary: { type: Number },
-  experienceRequired: { type: String }, // Made optional to match older data
-  qualifications: [{ type: String }], // Add this
-  benefits: [{ type: String }], // Add this
+  experienceRequired: { type: String, required: true },
+  qualifications: [{ type: String, required: true }],
+  benefits: [{ type: String }],
   status: {
     type: String,
     enum: ['open', 'closed', 'filled'],
     default: 'open',
   },
+  numberOfVacancies: { type: Number, required: true, default: 1 }, // Add this
+  hiredCandidates: [{ type: Schema.Types.ObjectId, ref: 'User' }], // Add this
 }, {
   timestamps: true,
 });

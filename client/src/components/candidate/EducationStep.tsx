@@ -1,10 +1,11 @@
 // src/components/candidate/EducationStep.tsx
 
-import { TextField, Grid, Typography, Button, IconButton, Box, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { TextField, Grid, Typography, Button, IconButton, Box, FormControl, InputLabel, Select, MenuItem, Autocomplete, Tooltip } from '@mui/material';
 import { useFormContext, useFieldArray, Controller, get } from 'react-hook-form';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import type {ProfileFormInputs} from '../../pages/candidate/CompleteProfilePage';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { type ProfileFormInputs } from '../../pages/candidate/CompleteProfilePage';
 
 // Predefined degree options
 const degreeOptions = [
@@ -18,6 +19,16 @@ const degreeOptions = [
   'Master of Education (M.Ed)',
   'Doctor of Philosophy (PhD)',
   'Other',
+];
+
+// In a real application, this list would be extensive and likely fetched from the backend
+const institutionOptions = [
+    'University of Delhi',
+    'Jawaharlal Nehru University',
+    'Indian Institute of Technology Bombay',
+    'Indian Institute of Technology Delhi',
+    'University of Mumbai',
+    'University of Calcutta',
 ];
 
 export const EducationStep = () => {
@@ -50,6 +61,7 @@ export const EducationStep = () => {
                     name={`education.${index}.degree`}
                     control={control}
                     rules={{ required: 'Degree is required' }}
+                    defaultValue=""
                     render={({ field }) => (
                       <Select {...field} labelId={`degree-label-${index}`} label="Degree">
                         {degreeOptions.map(option => <MenuItem key={option} value={option}>{option}</MenuItem>)}
@@ -64,14 +76,22 @@ export const EducationStep = () => {
                   name={`education.${index}.institution`}
                   control={control}
                   rules={{ required: 'Institution is required' }}
+                  defaultValue=""
                   render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Institution Name"
-                      fullWidth
-                      variant="standard"
-                      error={!!institutionError}
-                      helperText={institutionError?.message}
+                    <Autocomplete
+                        {...field}
+                        freeSolo
+                        options={institutionOptions}
+                        onChange={(e, value) => field.onChange(value)}
+                        renderInput={(params) => (
+                            <TextField
+                                {...params}
+                                label="Institution Name"
+                                variant="standard"
+                                error={!!institutionError}
+                                helperText={institutionError?.message as string}
+                            />
+                        )}
                     />
                   )}
                 />
@@ -81,6 +101,7 @@ export const EducationStep = () => {
                   name={`education.${index}.startYear`}
                   control={control}
                   rules={{ required: 'Start year is required' }}
+                  defaultValue=""
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -89,7 +110,7 @@ export const EducationStep = () => {
                       fullWidth
                       variant="standard"
                       error={!!startYearError}
-                      helperText={startYearError?.message}
+                      helperText={startYearError ? (startYearError.message as string) : "The year you started this course."}
                     />
                   )}
                 />
@@ -99,6 +120,7 @@ export const EducationStep = () => {
                   name={`education.${index}.endYear`}
                   control={control}
                   rules={{ required: 'End year is required' }}
+                  defaultValue=""
                   render={({ field }) => (
                     <TextField
                       {...field}
@@ -107,7 +129,7 @@ export const EducationStep = () => {
                       fullWidth
                       variant="standard"
                       error={!!endYearError}
-                      helperText={endYearError?.message}
+                      helperText={endYearError ? (endYearError.message as string) : "The year you completed or expect to complete."}
                     />
                   )}
                 />

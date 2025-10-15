@@ -19,10 +19,17 @@ import { EducationStep } from '../../components/candidate/EducationStep';
 import { ExperienceStep } from '../../components/candidate/ExperienceStep';
 import { SkillsStep } from '../../components/candidate/SkillsStep';
 
-// Define and EXPORT the type so other files can use it
+// --- THIS IS THE NEW SINGLE SOURCE OF TRUTH FOR THE FORM SHAPE ---
+export type AddressFields = {
+  street: string;
+  city: string;
+  state: string;
+  pinCode: string;
+};
+
 export type ProfileFormInputs = {
   phone: string;
-  address: string;
+  address: AddressFields;
   preferredLocations: string[];
   education: {
     degree: string;
@@ -33,6 +40,7 @@ export type ProfileFormInputs = {
   experience: {
     jobTitle: string;
     company: string;
+    companyAddress: AddressFields;
     startDate: string;
     endDate?: string;
     description?: string;
@@ -42,8 +50,8 @@ export type ProfileFormInputs = {
 
 const steps = ['Personal Information', 'Education', 'Work Experience', 'Skills'];
 
-const stepFields: (keyof ProfileFormInputs)[][] = [
-  ['phone', 'address'],
+const stepFields: (keyof ProfileFormInputs | `address.${keyof AddressFields}` | `experience.${number}.${keyof ProfileFormInputs['experience'][0]}`)[][] = [
+  ['phone', 'address.street', 'address.city', 'address.state', 'address.pinCode'],
   ['education'],
   ['experience'],
   ['skills'],
@@ -94,7 +102,18 @@ export const EditProfilePage = () => {
     queryFn: fetchCandidateProfile,
   });
 
-  const methods = useForm<ProfileFormInputs>({ mode: 'onChange' });
+  const methods = useForm<ProfileFormInputs>({
+    mode: 'onChange',
+    // Initialize with correct structure to prevent errors before data loads
+    defaultValues: {
+        phone: '',
+        address: { street: '', city: '', state: '', pinCode: '' },
+        preferredLocations: [],
+        education: [],
+        experience: [],
+        skills: [],
+    },
+  });
 
   useEffect(() => {
     if (profileData) {
@@ -102,17 +121,18 @@ export const EditProfilePage = () => {
     }
   }, [profileData, methods]);
 
-  const pictureMutation = useMutation({
+  const pictureMutation = useMutation({ 
       mutationFn: uploadPicture,
       onError: () => {
           toast.error("Picture upload failed. Please ensure it's a valid image under 2MB.");
       }
   });
 
-  const profileMutation = useMutation({
+  const profileMutation = useMutation({ 
       mutationFn: updateProfile,
-      onError: () => {
-          toast.error("An error occurred while updating your profile.");
+      onError: (error: any) => {
+          console.error("Profile update error:", error.response?.data);
+          toast.error(error.response?.data?.message || "An error occurred while updating your profile.");
       }
   });
 
@@ -140,12 +160,12 @@ export const EditProfilePage = () => {
     }
     queryClient.invalidateQueries({ queryKey: ['candidateProfile'] });
     toast.success('Profile saved successfully!');
-    navigate('/dashboard');
+    navigate('/candidate/profile'); // Navigate to the VIEW page on success
   };
 
   const handleNext = async () => {
     const fieldsToValidate = stepFields[activeStep];
-    const isValid = await methods.trigger(fieldsToValidate);
+    const isValid = await methods.trigger(fieldsToValidate as any);
     if (isValid) {
       setActiveStep((prev) => prev + 1);
     }
@@ -194,29 +214,35 @@ export const EditProfilePage = () => {
         <Stepper activeStep={activeStep} sx={{ pt: 3, pb: 5 }}>
           {steps.map((label) => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
         </Stepper>
-        
-        {/* --- THIS IS THE KEY CHANGE --- */}
         <FormProvider {...methods}>
           {activeStep === steps.length - 1 ? (
-            // On the LAST step, render the FORM tag with the submit handler
             <form onSubmit={methods.handleSubmit(handleSave)}>
               {getStepContent(activeStep)}
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
                 <Button onClick={handleBack} sx={{ mr: 1 }}>Back</Button>
-                <Button variant="contained" type="submit" disabled={profileMutation.isPending || pictureMutation.isPending}>
+                <Button
+                  variant="contained"
+                  type="submit"
+                  disabled={profileMutation.isPending || pictureMutation.isPending}
+                >
                   {(profileMutation.isPending || pictureMutation.isPending) ? <CircularProgress size={24} /> : 'Save Changes'}
                 </Button>
               </Box>
             </form>
           ) : (
-            // On ALL OTHER steps, render the content WITHOUT a form tag
             <>
               {getStepContent(activeStep)}
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
                 {activeStep !== 0 && (
                   <Button onClick={handleBack} sx={{ mr: 1 }}>Back</Button>
                 )}
-                <Button variant="contained" onClick={handleNext} type="button">Next</Button>
+                <Button 
+                  variant="contained" 
+                  onClick={handleNext}
+                  type="button"
+                >
+                  Next
+                </Button>
               </Box>
             </>
           )}
@@ -224,4 +250,4 @@ export const EditProfilePage = () => {
       </Paper>
     </Container>
   );
-}; 
+};

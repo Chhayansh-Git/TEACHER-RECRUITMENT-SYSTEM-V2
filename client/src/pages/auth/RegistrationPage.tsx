@@ -14,29 +14,24 @@ import {
   TextField,
   Button,
   CircularProgress,
+  Alert,
   Grid,
   Link,
   Avatar,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
-  FormLabel,
-  FormControl,
 } from '@mui/material';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
-// Define types for form inputs
 type Inputs = {
   name: string;
   email: string;
+  phone: string;
   password: string;
   confirmPassword: string;
-  role: 'candidate' | 'school';
 };
 
-// API call function
-const registerUser = async (userData: Omit<Inputs, 'confirmPassword'>) => {
-  const { data } = await api.post('/auth/register', userData);
+const registerCandidate = async (userData: Omit<Inputs, 'confirmPassword'>) => {
+  const payload = { ...userData, role: 'candidate' };
+  const { data } = await api.post('/auth/register', payload);
   return data;
 };
 
@@ -46,24 +41,23 @@ export const RegistrationPage = () => {
     handleSubmit,
     watch,
     formState: { errors },
-  } = useForm<Inputs>({ defaultValues: { role: 'candidate' }});
-
+  } = useForm<Inputs>();
+  
   const navigate = useNavigate();
 
   const mutation = useMutation({
-    mutationFn: registerUser,
+    mutationFn: registerCandidate,
     onSuccess: (data) => {
-      toast.success('Registration successful! Please check your email for a verification code.');
-      // Redirect to the OTP page, passing the email in the state
-      navigate('/verify-email', { state: { email: data.email } });
+      toast.success(data.message);
+      navigate('/verify-otp', { state: { email: data.email, phone: data.phone } });
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Registration failed. Please try again.');
+        toast.error(error.response?.data?.message || 'Registration failed.');
     }
   });
 
-  const onSubmit: SubmitHandler<Inputs> = ({ name, email, password, role }) => {
-    mutation.mutate({ name, email, password, role });
+  const onSubmit: SubmitHandler<Inputs> = data => {
+    mutation.mutate(data);
   };
 
   return (
@@ -84,7 +78,7 @@ export const RegistrationPage = () => {
           <PersonAddIcon />
         </Avatar>
         <Typography component="h1" variant="h5">
-          Sign Up
+          Candidate Sign Up
         </Typography>
         <Box
           component="form"
@@ -100,7 +94,7 @@ export const RegistrationPage = () => {
             autoFocus
             {...register('name', { required: 'Name is required' })}
             error={!!errors.name}
-            helperText={errors.name?.message}
+            helperText={errors.name?.message as string}
           />
           <TextField
             margin="normal"
@@ -113,7 +107,17 @@ export const RegistrationPage = () => {
               pattern: { value: /^\S+@\S+\.\S+$/, message: "Invalid email" },
             })}
             error={!!errors.email}
-            helperText={errors.email?.message}
+            helperText={errors.email?.message as string}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="phone"
+            label="Phone Number (for OTP)"
+            {...register('phone', { required: 'Phone number is required' })}
+            error={!!errors.phone}
+            helperText={errors.phone?.message as string}
           />
           <TextField
             margin="normal"
@@ -127,7 +131,7 @@ export const RegistrationPage = () => {
               minLength: { value: 6, message: 'Password must be at least 6 characters' }
             })}
             error={!!errors.password}
-            helperText={errors.password?.message}
+            helperText={errors.password?.message as string}
           />
           <TextField
             margin="normal"
@@ -142,17 +146,14 @@ export const RegistrationPage = () => {
                 value === watch('password') || 'Passwords do not match',
             })}
             error={!!errors.confirmPassword}
-            helperText={errors.confirmPassword?.message}
+            helperText={errors.confirmPassword?.message as string}
           />
-          <FormControl component="fieldset" sx={{ mt: 2 }}>
-            <FormLabel component="legend">I am a...</FormLabel>
-            <RadioGroup row defaultValue="candidate">
-              <FormControlLabel value="candidate" control={<Radio {...register('role')} />} label="Candidate" />
-              <FormControlLabel value="school" control={<Radio {...register('role')} />} label="School" />
-            </RadioGroup>
-          </FormControl>
-          
-          {/* The Alert component is removed in favor of toast notifications */}
+
+          {mutation.isError && (
+             <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
+                {(mutation.error as any).response?.data?.message || 'Registration failed'}
+            </Alert>
+          )}
 
           <Button
             type="submit"
@@ -161,7 +162,7 @@ export const RegistrationPage = () => {
             sx={{ mt: 3, mb: 2 }}
             disabled={mutation.isPending}
           >
-            {mutation.isPending ? <CircularProgress size={24} color="inherit" /> : 'Sign Up'}
+            {mutation.isPending ? <CircularProgress size={24} color="inherit" /> : 'Register & Verify'}
           </Button>
           <Grid container justifyContent="flex-end">
             <Grid item>

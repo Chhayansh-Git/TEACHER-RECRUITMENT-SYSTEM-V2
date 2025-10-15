@@ -4,82 +4,80 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-// Interface to define the User document structure for TypeScript
+// Reusable Address Schema for consistency
+const AddressSchema = new Schema({
+    street: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    pinCode: { type: String, required: true },
+}, { _id: false });
+
+// Schema for detailed school information, as per SRS
+const SchoolDetailsSchema = new Schema({
+    principalName: { type: String, required: true },
+    directorName: { type: String, required: true },
+    address: { type: AddressSchema, required: true },
+    contactNumber: { type: String, required: true },
+    whatsappNumber: { type: String },
+    website: { type: String },
+    schoolUpTo: { type: String, required: true },
+    board: { type: String, required: true },
+    cbseAffiliationNumber: { type: String },
+    studentStrength: { type: Number },
+}, { _id: false });
+
+
 export interface IUser extends Document {
-  name: string;
+  name: string; // School Name or Candidate Name
   email: string;
+  phone: string; // Primary contact for OTP
   password?: string;
   role: 'candidate' | 'school' | 'admin' | 'super-admin';
   isVerified: boolean;
   isSuspended: boolean;
   profileCompleted: boolean;
-  passwordResetToken?: string; 
-  passwordResetExpires?: Date; 
-  createPasswordResetToken(): string;
-  comparePassword(enteredPassword: string): Promise<boolean>;
   profilePictureUrl?: string;
-  isEmailVerified: boolean; // Add this
-  emailOtp?: string; // Add this
-  emailOtpExpires?: Date; // Add this
-  isPhoneVerified: boolean; // Add this
-  phoneOtp?: string; // Add this
-  phoneOtpExpires?: Date; // Add this
+  isEmailVerified: boolean;
+  emailOtp?: string;
+  emailOtpExpires?: Date;
+  isPhoneVerified: boolean;
+  phoneOtp?: string;
+  phoneOtpExpires?: Date;
+  registrationFeePaid: boolean;
+  schoolDetails?: typeof SchoolDetailsSchema; // Embed school details directly
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
+  comparePassword(enteredPassword: string): Promise<boolean>;
+  createPasswordResetToken(): string;
 }
 
 const UserSchema: Schema<IUser> = new Schema(
   {
-    name: {
-      type: String,
-      required: [true, 'Please provide a name'],
-    },
-    email: {
-      type: String,
-      required: [true, 'Please provide an email'],
-      unique: true,
-      match: [
-        /^\S+@\S+\.\S+$/,
-        'Please provide a valid email address',
-      ],
-    },
-    password: {
-      type: String,
-      required: [true, 'Please provide a password'],
-      minlength: 6,
-      select: false,
-    },
-    role: {
-      type: String,
-      enum: ['candidate', 'school', 'admin', 'super-admin'],
-      required: true,
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    isSuspended: {
-      type: Boolean,
-      default: false,
-    },
-    profileCompleted: {
-        type: Boolean,
-        default: false,
-    },
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    phone: { type: String, required: true, unique: true, sparse: true },
+    password: { type: String, required: true, minlength: 6, select: false },
+    role: { type: String, enum: ['candidate', 'school', 'admin', 'super-admin'], required: true },
+    isVerified: { type: Boolean, default: false },
+    isSuspended: { type: Boolean, default: false },
+    profileCompleted: { type: Boolean, default: false },
+    profilePictureUrl: { type: String },
     isEmailVerified: { type: Boolean, default: false },
-    isPhoneVerified: { type: Boolean, default: false }, // Add this
     emailOtp: String,
     emailOtpExpires: Date,
-    phoneOtp: String, // Add this
-    phoneOtpExpires: Date, // Add this
-    profilePictureUrl: { type: String },
+    isPhoneVerified: { type: Boolean, default: false },
+    phoneOtp: String,
+    phoneOtpExpires: Date,
+    registrationFeePaid: { type: Boolean, default: false },
+    schoolDetails: { type: SchoolDetailsSchema, required: function(this: IUser) { return this.role === 'school'; } },
     passwordResetToken: String,
-    passwordResetExpires: Date, 
+    passwordResetExpires: Date,
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Middleware: Encrypt password BEFORE saving user document
+// ... (pre-save hooks, methods, etc., remain the same)
+
 UserSchema.pre<IUser>('save', async function (next) {
   if (!this.isModified('password') || !this.password) {
     return next();
@@ -89,24 +87,18 @@ UserSchema.pre<IUser>('save', async function (next) {
   next();
 });
 
-// Method: Compare entered password with the hashed password in the database
 UserSchema.methods.comparePassword = async function (enteredPassword: string): Promise<boolean> {
+  if (!this.password) return false;
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
 UserSchema.methods.createPasswordResetToken = function (): string {
   const resetToken = crypto.randomBytes(32).toString('hex');
-
-  this.passwordResetToken = crypto
-    .createHash('sha256')
-    .update(resetToken)
-    .digest('hex');
-
-  // Set token to expire in 10 minutes
-  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
-
+  this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+  this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000);
   return resetToken;
 };
+
 
 const User: Model<IUser> = mongoose.model<IUser>('User', UserSchema);
 

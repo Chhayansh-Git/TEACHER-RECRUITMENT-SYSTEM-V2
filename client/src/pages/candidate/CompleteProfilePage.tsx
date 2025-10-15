@@ -3,14 +3,14 @@
 import { useState } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import api from '../../api';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux.hooks';
 import { setCredentials } from '../../app/authSlice';
-import { Link as RouterLink } from 'react-router-dom'; 
+import toast from 'react-hot-toast';
 
 // MUI Components
-import { Container, Paper, Stepper, Step, StepLabel, Button, Box, Typography, CircularProgress, Alert } from '@mui/material';
+import { Container, Paper, Stepper, Step, StepLabel, Button, Box, Typography, CircularProgress } from '@mui/material';
 
 // Import step components
 import { PersonalInfoStep } from '../../components/candidate/PersonalInfoStep';
@@ -18,32 +18,17 @@ import { EducationStep } from '../../components/candidate/EducationStep';
 import { ExperienceStep } from '../../components/candidate/ExperienceStep';
 import { SkillsStep } from '../../components/candidate/SkillsStep';
 
+// Import the shared type definition
+import { type ProfileFormInputs } from './EditProfilePage';
+
 const steps = ['Personal Information', 'Education', 'Work Experience', 'Skills'];
 
-// Define types for form entries
-type EducationEntry = {
-  degree: string;
-  institution: string;
-  startYear: number;
-  endYear: number;
-};
-
-type ExperienceEntry = {
-  jobTitle: string;
-  company: string;
-  startDate: string;
-  endDate?: string;
-  description?: string;
-};
-
-export type ProfileFormInputs = {
-  phone: string;
-  address: string;
-  preferredLocations: string[]; // Add this line
-  education: EducationEntry[];
-  experience: ExperienceEntry[];
-  skills: string[];
-};
+const stepFields: (keyof ProfileFormInputs | `address.${keyof ProfileFormInputs['address']}`)[][] = [
+  ['phone', 'address.street', 'address.city', 'address.state', 'address.pinCode'],
+  ['education'],
+  ['experience'],
+  ['skills'],
+];
 
 const updateProfile = async (data: ProfileFormInputs) => {
     const token = localStorage.getItem('token');
@@ -53,14 +38,6 @@ const updateProfile = async (data: ProfileFormInputs) => {
     return responseData;
 };
 
-// Update stepFields for validation
-const stepFields: (keyof ProfileFormInputs)[][] = [
-  ['phone', 'address', 'preferredLocations'], // Add field to step 0
-  ['education'],
-  ['experience'],
-  ['skills'],
-];
-
 export const CompleteProfilePage = () => {
   const [activeStep, setActiveStep] = useState(0);
   const navigate = useNavigate();
@@ -69,13 +46,15 @@ export const CompleteProfilePage = () => {
   const { userInfo, token } = useAppSelector((state) => state.auth);
 
   const methods = useForm<ProfileFormInputs>({
+    // --- THIS IS THE CRITICAL FIX ---
+    // Ensure all fields, especially nested objects and arrays, have correct default values.
     defaultValues: {
-      phone: '',
-      address: '',
-      preferredLocations: [], // Initialize as an empty array
-      education: [],
-      experience: [],
-      skills: [],
+        phone: '',
+        address: { street: '', city: '', state: '', pinCode: '' },
+        preferredLocations: [],
+        education: [],
+        experience: [],
+        skills: [],
     },
     mode: 'onChange',
   });
@@ -87,14 +66,19 @@ export const CompleteProfilePage = () => {
             const updatedUserInfo = { ...userInfo, profileCompleted: true };
             dispatch(setCredentials({ userInfo: updatedUserInfo, token }));
         }
-        queryClient.invalidateQueries({ queryKey: ['userProfile'] });
+        queryClient.invalidateQueries({ queryKey: ['candidateProfile'] });
+        toast.success('Profile created successfully!');
         navigate('/dashboard');
     },
+    onError: (error: any) => {
+        console.error("Profile creation error:", error.response?.data);
+        toast.error(error.response?.data?.message || 'An error occurred while creating your profile.');
+    }
   });
 
   const handleNext = async () => {
     const fieldsToValidate = stepFields[activeStep];
-    const isValid = await methods.trigger(fieldsToValidate);
+    const isValid = await methods.trigger(fieldsToValidate as any);
     if (isValid) {
       setActiveStep((prev) => prev + 1);
     }
@@ -108,30 +92,24 @@ export const CompleteProfilePage = () => {
 
   const getStepContent = (step: number) => {
     switch (step) {
-      case 0:
-        return <PersonalInfoStep />;
-      case 1:
-        return <EducationStep />;
-      case 2:
-        return <ExperienceStep />;
-      case 3:
-        return <SkillsStep />;
-      default:
-        throw new Error('Unknown step');
+      case 0: return <PersonalInfoStep />;
+      case 1: return <EducationStep />;
+      case 2: return <ExperienceStep />;
+      case 3: return <SkillsStep />;
+      default: throw new Error('Unknown step');
     }
   };
 
   return (
     <Container component="main" maxWidth="md" sx={{ mb: 4 }}>
       <Paper variant="outlined" sx={{ my: { xs: 3, md: 6 }, p: { xs: 2, md: 3 } }}>
-        {/* --- ADD THIS BOX --- */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography component="h1" variant="h4" align="center">
-            Complete Your Profile
-          </Typography>
-          <Button component={RouterLink} to="/dashboard">
-            Skip for now
-          </Button>
+            <Typography component="h1" variant="h4" align="center">
+                Complete Your Profile
+            </Typography>
+            <Button component={RouterLink} to="/dashboard">
+                Skip for now
+            </Button>
         </Box>
         <Stepper activeStep={activeStep} sx={{ pt: 3, pb: 5 }}>
           {steps.map((label) => (
@@ -142,8 +120,6 @@ export const CompleteProfilePage = () => {
         </Stepper>
         
         <FormProvider {...methods}>
-          {/* --- THIS IS THE KEY CHANGE --- */}
-          {/* We render a form ONLY on the last step. Otherwise, it's a simple div. */}
           {activeStep === steps.length - 1 ? (
             <form onSubmit={methods.handleSubmit(onSubmit)}>
               {getStepContent(activeStep)}
@@ -180,13 +156,9 @@ export const CompleteProfilePage = () => {
             </>
           )}
         </FormProvider>
-
-        {mutation.isError && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            An error occurred while updating your profile.
-          </Alert>
-        )}
       </Paper>
     </Container>
   );
 };
+
+export { type ProfileFormInputs };

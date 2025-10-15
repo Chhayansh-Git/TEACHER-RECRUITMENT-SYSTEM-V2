@@ -4,9 +4,8 @@ import { Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import CandidateProfile from '../models/candidateProfile.model';
 import User from '../models/user.model';
+import PushedCandidate from '../models/pushedCandidate.model'; // Import PushedCandidate model
 import { ProtectedRequest } from '../middleware/auth.middleware';
-import PushedCandidate from '../models/pushedCandidate.model';
-import Interview from '../models/interview.model';
 
 /**
  * @desc    Get candidate profile
@@ -39,20 +38,40 @@ const updateCandidateProfile = asyncHandler(async (req: ProtectedRequest, res: R
     { new: true, upsert: true, runValidators: true }
   );
 
-  // Also, update the main user model to reflect that the profile is complete
   await User.findByIdAndUpdate(userId, { profileCompleted: true });
 
   res.status(200).json(profile);
 });
 
+/**
+ * @desc    Get all applications for the logged-in candidate
+ * @route   GET /api/candidate/my-applications
+ * @access  Private/Candidate
+ */
+const getMyApplications = asyncHandler(async (req: ProtectedRequest, res: Response) => {
+    const applications = await PushedCandidate.find({ candidate: req.user?._id })
+        .populate({
+            path: 'school',
+            select: 'name profilePictureUrl', // Anonymize school details if needed, but name is useful here
+        })
+        .populate({
+            path: 'requirement',
+            select: 'title location',
+        })
+        .sort({ createdAt: -1 });
+
+    res.json(applications);
+});
+
 const getDashboardStats = asyncHandler(async (req: ProtectedRequest, res: Response) => {
     const candidateId = req.user?._id;
-
+    
     const applicationsCount = await PushedCandidate.countDocuments({ candidate: candidateId });
-    const interviewsCount = await Interview.countDocuments({ candidate: candidateId });
+    const interviewsCount = await PushedCandidate.countDocuments({ candidate: candidateId, status: 'interview scheduled' });
     const profileCompleted = req.user?.profileCompleted || false;
 
     res.json({ applicationsCount, interviewsCount, profileCompleted });
 });
 
-export { getCandidateProfile, updateCandidateProfile, getDashboardStats };
+
+export { getCandidateProfile, updateCandidateProfile, getMyApplications, getDashboardStats };

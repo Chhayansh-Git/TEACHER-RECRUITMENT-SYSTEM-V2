@@ -1,11 +1,12 @@
 // src/controllers/payment.controller.ts
 
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import Razorpay from 'razorpay';
-import crypto from 'crypto'; // Import the crypto module
+import crypto from 'crypto';
 import Plan from '../models/plan.model';
 import Subscription from '../models/subscription.model';
+import User from '../models/user.model'; // Import User model
 import { ProtectedRequest } from '../middleware/auth.middleware';
 
 if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
@@ -13,8 +14,8 @@ if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
 }
 
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+  key_id: process.env.RAZORPAY_KEY_ID as string,
+  key_secret: process.env.RAZORPAY_KEY_SECRET as string,
 });
 
 /**
@@ -92,4 +93,57 @@ const verifyPayment = asyncHandler(async (req: ProtectedRequest, res: Response) 
   }
 });
 
-export { createOrder, verifyPayment };
+/**
+ * @desc    Create a razorpay order for registration fee
+ * @route   POST /api/payments/create-registration-order
+ * @access  Public (or Private if user is partially created)
+ */
+const createRegistrationOrder = asyncHandler(async (req: Request, res: Response) => {
+    const registrationFee = parseInt(process.env.REGISTRATION_FEE || '1000'); // Fee in INR, from .env
+    const { userId } = req.body;
+
+    const options = {
+        amount: registrationFee * 100, // Amount in paise
+        currency: 'INR',
+        receipt: `reg_rcpt_${userId}`,
+    };
+
+    const order = await razorpay.orders.create(options);
+    res.json(order);
+});
+
+/**
+ * @desc    Verify registration payment and activate school account
+ * @route   POST /api/payments/verify-registration-payment
+ * @access  Public
+ */
+const verifyRegistrationPayment = asyncHandler(async (req: Request, res: Response) => {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, userId } = req.body;
+
+    const body = razorpay_order_id + '|' + razorpay_payment_id;
+
+    const expectedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET as string)
+        .update(body.toString())
+        .digest('hex');
+
+    if (expectedSignature === razorpay_signature) {
+        const user = await User.findById(userId);
+        if (!user) {
+            res.status(404);
+            throw new Error('User not found');
+        }
+
+        user.registrationFeePaid = true;
+        await user.save();
+
+        res.json({
+            message: 'Payment successful! Your account is now active. Please verify your email to log in.',
+        });
+    } else {
+        res.status(400);
+        throw new Error('Payment verification failed.');
+    }
+});
+
+export { createOrder, verifyPayment, createRegistrationOrder, verifyRegistrationPayment };

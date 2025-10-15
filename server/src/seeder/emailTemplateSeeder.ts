@@ -23,12 +23,6 @@ const connectDB = async () => {
 
 /**
  * An array containing the default email templates to be seeded into the database.
- * Each template object matches the IEmailTemplate schema.
- * - key: A unique machine-readable identifier used in the code to fetch the template.
- * - name: A human-readable name for display in the admin panel.
- * - subject: The email subject line. Can contain placeholders.
- * - body: The HTML content of the email. Can contain placeholders.
- * - placeholders: An array of strings representing the variables that can be replaced in the subject and body.
  */
 const templates = [
   {
@@ -104,11 +98,42 @@ const templates = [
     `,
     placeholders: ['schoolName', 'candidateName', 'status', 'interviewDate']
   },
+  // --- NEW TEMPLATES FOR OFFER LETTERS ---
+  {
+    key: 'offer-letter-sent-candidate',
+    name: 'Offer Letter Sent (To Candidate)',
+    subject: 'Congratulations! You have received a job offer from {{schoolName}}',
+    body: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Job Offer from {{schoolName}}</h2>
+        <p>Dear {{candidateName}},</p>
+        <p>Following your recent interview, we are delighted to offer you the position of <strong>{{jobTitle}}</strong> at <strong>{{schoolName}}</strong>.</p>
+        <p>Please log in to your TeacherRecruit dashboard to view the full details of the offer and to formally accept or decline.</p>
+        <p>We are excited about the possibility of you joining our team.</p>
+        <hr/>
+        <p>Best regards,<br/>The {{schoolName}} Team</p>
+      </div>
+    `,
+    placeholders: ['candidateName', 'schoolName', 'jobTitle']
+  },
+  {
+    key: 'offer-response-school',
+    name: 'Offer Letter Response (To School)',
+    subject: 'Offer Update: {{candidateName}} has {{status}} your job offer',
+    body: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Job Offer Response</h2>
+        <p>Hello {{schoolName}},</p>
+        <p>The candidate, <strong>{{candidateName}}</strong>, has officially <strong>{{status}}</strong> your job offer for the <strong>{{jobTitle}}</strong> position.</p>
+        <p>You can view this update on your dashboard.</p>
+        <hr/>
+        <p>Best regards,<br/>The TeacherRecruit Team</p>
+      </div>
+    `,
+    placeholders: ['schoolName', 'candidateName', 'status', 'jobTitle']
+  },
 ];
 
-/**
- * Deletes all existing templates and inserts the new ones from the `templates` array.
- */
 const importData = async () => {
   try {
     console.log('Clearing existing email templates...');
@@ -123,9 +148,6 @@ const importData = async () => {
   }
 };
 
-/**
- * Deletes all email templates from the database.
- */
 const destroyData = async () => {
     try {
         console.log('Destroying all email templates...');
@@ -138,14 +160,6 @@ const destroyData = async () => {
     }
 };
 
-/**
- * Main function to run the seeder.
- * Connects to the database and then either imports or destroys data
- * based on the command-line arguments.
- *
- * To import: `npm run seed:templates`
- * To destroy: `npm run seed:templates -d`
- */
 const run = async () => {
     await connectDB();
     if (process.argv[2] === '-d') {

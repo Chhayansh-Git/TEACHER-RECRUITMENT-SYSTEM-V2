@@ -6,8 +6,8 @@ export interface IPushedCandidate extends Document {
   requirement: mongoose.Schema.Types.ObjectId;
   candidate: mongoose.Schema.Types.ObjectId;
   school: mongoose.Schema.Types.ObjectId;
-  status: 'pushed' | 'viewed' | 'shortlisted' | 'rejected' | 'interview scheduled';
-  shortlistedAt?: Date; // when the candidate was shortlisted
+  status: 'pushed' | 'viewed' | 'shortlisted' | 'interview scheduled' | 'offer sent' | 'hired' | 'rejected'; // Add new statuses
+  shortlistedAt?: Date;
 }
 
 const PushedCandidateSchema: Schema<IPushedCandidate> = new Schema({
@@ -28,7 +28,7 @@ const PushedCandidateSchema: Schema<IPushedCandidate> = new Schema({
   },
   status: {
     type: String,
-    enum: ['pushed', 'viewed', 'shortlisted', 'rejected', 'interview scheduled'], // Add new status
+    enum: ['pushed', 'viewed', 'shortlisted', 'interview scheduled', 'offer sent', 'hired', 'rejected'], // Add new statuses
     default: 'pushed',
   },
   shortlistedAt: { type: Date },
@@ -36,7 +36,6 @@ const PushedCandidateSchema: Schema<IPushedCandidate> = new Schema({
   timestamps: true,
 });
 
-// Ensure that a candidate can only be pushed once for the same requirement
 PushedCandidateSchema.index({ requirement: 1, candidate: 1 }, { unique: true });
 
 const PushedCandidate: Model<IPushedCandidate> = mongoose.model<IPushedCandidate>('PushedCandidate', PushedCandidateSchema);

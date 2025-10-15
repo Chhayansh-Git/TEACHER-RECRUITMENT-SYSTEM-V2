@@ -3,23 +3,26 @@
 import { useEffect, useState, useRef } from 'react';
 import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import api from '../../api';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux.hooks';
 import { setCredentials } from '../../app/authSlice';
-import { Link as RouterLink } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 // MUI Components
 import { Paper, Typography, TextField, Button, Grid, CircularProgress, Alert, Box, Avatar, IconButton } from '@mui/material';
 import PhotoCamera from '@mui/icons-material/PhotoCamera';
 
-const API_BASE_URL = 'http://localhost:5001'; // Define base URL for images
+const API_BASE_URL = 'http://localhost:5001';
 
+// Updated type to use a nested address object
 type SchoolProfileInputs = {
-  address: string;
-  city: string;
-  state: string;
-  pinCode: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    pinCode: string;
+  };
   principalName: string;
   directorName: string;
   cbseAffiliationNumber?: string;
@@ -88,22 +91,29 @@ export const SchoolProfilePage = () => {
 
     if (fileInputRef.current?.files?.[0]) {
       try {
-        const uploadResult = await pictureMutation.mutateAsync(fileInputRef.current.files[0]);
+        const uploadResult = await pictureMutation.mutateAsync(fileInputref.current.files[0]);
         newPictureUrl = uploadResult.profilePictureUrl;
       } catch (error) {
+        toast.error("Picture upload failed.");
         console.error("Picture upload failed", error);
         return;
       }
     }
 
-    await profileMutation.mutateAsync(formData);
-
-    if (userInfo && token) {
-        const updatedUserInfo = { ...userInfo, profilePictureUrl: newPictureUrl };
-        dispatch(setCredentials({ userInfo: updatedUserInfo, token }));
+    try {
+        await profileMutation.mutateAsync(formData);
+    
+        if (userInfo && token) {
+            const updatedUserInfo = { ...userInfo, profilePictureUrl: newPictureUrl };
+            dispatch(setCredentials({ userInfo: updatedUserInfo, token }));
+        }
+        queryClient.invalidateQueries({ queryKey: ['schoolProfile'] });
+        toast.success("Profile saved successfully!");
+        navigate('/dashboard');
+    } catch (error) {
+        toast.error("Failed to update profile.");
+        console.error("Profile update failed", error);
     }
-    queryClient.invalidateQueries({ queryKey: ['schoolProfile'] });
-    navigate('/dashboard');
   };
 
   if (isLoading) return <CircularProgress />;
@@ -119,7 +129,6 @@ export const SchoolProfilePage = () => {
         </Button>
       </Box>
 
-      {/* Profile Picture Upload UI */}
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
         <input
           accept="image/*"
@@ -147,18 +156,21 @@ export const SchoolProfilePage = () => {
            <Grid item xs={12}>
             <Controller name="directorName" control={control} rules={{ required: 'Director name is required' }} render={({ field }) => <TextField {...field} label="Director Name" fullWidth error={!!errors.directorName} helperText={errors.directorName?.message} />} />
           </Grid>
+          
+          {/* --- UPDATED STRUCTURED ADDRESS FIELDS --- */}
           <Grid item xs={12}>
-            <Controller name="address" control={control} rules={{ required: 'Address is required' }} render={({ field }) => <TextField {...field} label="School Address" fullWidth error={!!errors.address} helperText={errors.address?.message} />} />
+            <Controller name="address.street" control={control} rules={{ required: 'Street Address is required' }} render={({ field }) => <TextField {...field} label="Street Address" fullWidth error={!!errors.address?.street} helperText={errors.address?.street?.message} />} />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <Controller name="city" control={control} rules={{ required: 'City is required' }} render={({ field }) => <TextField {...field} label="City" fullWidth error={!!errors.city} helperText={errors.city?.message} />} />
+            <Controller name="address.city" control={control} rules={{ required: 'City is required' }} render={({ field }) => <TextField {...field} label="City" fullWidth error={!!errors.address?.city} helperText={errors.address?.city?.message} />} />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <Controller name="state" control={control} rules={{ required: 'State is required' }} render={({ field }) => <TextField {...field} label="State" fullWidth error={!!errors.state} helperText={errors.state?.message} />} />
+            <Controller name="address.state" control={control} rules={{ required: 'State is required' }} render={({ field }) => <TextField {...field} label="State" fullWidth error={!!errors.address?.state} helperText={errors.address?.state?.message} />} />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <Controller name="pinCode" control={control} rules={{ required: 'PIN Code is required' }} render={({ field }) => <TextField {...field} label="PIN Code" fullWidth error={!!errors.pinCode} helperText={errors.pinCode?.message} />} />
+            <Controller name="address.pinCode" control={control} rules={{ required: 'PIN Code is required' }} render={({ field }) => <TextField {...field} label="PIN Code" fullWidth error={!!errors.address?.pinCode} helperText={errors.address?.pinCode?.message} />} />
           </Grid>
+
           <Grid item xs={12} sm={6}>
             <Controller name="cbseAffiliationNumber" control={control} render={({ field }) => <TextField {...field} label="CBSE Affiliation No. (Optional)" fullWidth />} />
           </Grid>

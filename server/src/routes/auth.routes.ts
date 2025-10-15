@@ -1,16 +1,24 @@
 // src/routes/auth.routes.ts
 
 import express from 'express';
-import { registerUser, loginUser, forgotPassword, resetPassword, verifyEmailOtp, resendEmailOtp } from '../controllers/auth.controller';
-
+import { 
+    registerUser, 
+    loginUser, 
+    verifyOtp, // Changed from verifyEmailOtp
+    resendOtp, // Changed from resendEmailOtp
+    forgotPassword, 
+    resetPassword 
+} from '../controllers/auth.controller';
 
 const router = express.Router();
 
 router.post('/register', registerUser);
 router.post('/login', loginUser);
 router.post('/forgot-password', forgotPassword);
-router.patch('/reset-password/:token', resetPassword); // Use patch for updating
-router.post('/verify-email-otp', verifyEmailOtp);
-router.post('/resend-email-otp', resendEmailOtp);
+router.patch('/reset-password/:token', resetPassword);
+
+// Corrected OTP routes
+router.post('/verify-otp', verifyOtp);
+router.post('/resend-otp', resendOtp);
 
 export default router;

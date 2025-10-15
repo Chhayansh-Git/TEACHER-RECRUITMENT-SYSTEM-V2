@@ -6,6 +6,7 @@ import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import api from '../../api';
 import { useAppDispatch } from '../../hooks/redux.hooks';
 import { setCredentials } from '../../app/authSlice';
+import toast from 'react-hot-toast';
 
 // MUI Components
 import {
@@ -15,10 +16,10 @@ import {
   TextField,
   Button,
   CircularProgress,
-  Alert,
   Grid,
   Link,
-  Avatar
+  Avatar,
+  Divider
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 
@@ -38,7 +39,7 @@ export const LoginPage = () => {
     handleSubmit,
     formState: { errors },
   } = useForm<Inputs>();
-
+  
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
@@ -48,6 +49,9 @@ export const LoginPage = () => {
       dispatch(setCredentials({ userInfo: data, token: data.token }));
       navigate('/dashboard'); 
     },
+    onError: (error: any) => {
+        toast.error(error.response?.data?.message || 'Invalid email or password');
+    }
   });
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {
@@ -74,9 +78,9 @@ export const LoginPage = () => {
         <Typography component="h1" variant="h5">
           Sign In
         </Typography>
-        {/* The onSubmit is removed from the form element */}
         <Box
           component="form"
+          onSubmit={handleSubmit(onSubmit)}
           noValidate
           sx={{ mt: 1 }}
         >
@@ -96,7 +100,7 @@ export const LoginPage = () => {
               },
             })}
             error={!!errors.email}
-            helperText={errors.email?.message}
+            helperText={errors.email?.message as string}
           />
           <TextField
             margin="normal"
@@ -108,18 +112,10 @@ export const LoginPage = () => {
             autoComplete="current-password"
             {...register('password', { required: 'Password is required' })}
             error={!!errors.password}
-            helperText={errors.password?.message}
+            helperText={errors.password?.message as string}
           />
-          {mutation.isError && (
-            <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
-              {/* @ts-ignore */}
-              {mutation.error.response?.data?.message || 'Invalid email or password'}
-            </Alert>
-          )}
-          {/* The type is changed to "button" and onClick is added */}
           <Button
-            type="button"
-            onClick={handleSubmit(onSubmit)}
+            type="submit"
             fullWidth
             variant="contained"
             sx={{ mt: 3, mb: 2 }}
@@ -132,18 +128,24 @@ export const LoginPage = () => {
             )}
           </Button>
           <Grid container justifyContent="space-between">
-            <Grid>
+            <Grid item>
               <Link component={RouterLink} to="/forgot-password" variant="body2">
                 Forgot password?
               </Link>
             </Grid>
-            <Grid>
+            <Grid item>
               <Link component={RouterLink} to="/register" variant="body2">
                 {"Don't have an account? Sign Up"}
               </Link>
             </Grid>
           </Grid>
         </Box>
+        
+        {/* --- THIS IS THE FIX --- */}
+        <Divider sx={{ width: '100%', my: 2 }}>or</Divider>
+        <Button component={RouterLink} to="/" fullWidth>
+          Back to Home
+        </Button>
       </Box>
     </Container>
   );
