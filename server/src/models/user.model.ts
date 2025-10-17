@@ -1,10 +1,8 @@
-// src/models/user.model.ts
-
+// chhayansh-git/teacher-recruitment-system-v2/TEACHER-RECRUITMENT-SYSTEM-V2-f3d22d9e27ee0839a3c93ab1d4f580b31df39678/server/src/models/user.model.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-// Reusable Address Schema for consistency
 const AddressSchema = new Schema({
     street: { type: String, required: true },
     city: { type: String, required: true },
@@ -12,7 +10,6 @@ const AddressSchema = new Schema({
     pinCode: { type: String, required: true },
 }, { _id: false });
 
-// Schema for detailed school information, as per SRS
 const SchoolDetailsSchema = new Schema({
     principalName: { type: String, required: true },
     directorName: { type: String, required: true },
@@ -28,11 +25,11 @@ const SchoolDetailsSchema = new Schema({
 
 
 export interface IUser extends Document {
-  name: string; // School Name or Candidate Name
+  name: string;
   email: string;
-  phone: string; // Primary contact for OTP
+  phone: string;
   password?: string;
-  role: 'candidate' | 'school' | 'admin' | 'super-admin';
+  role: 'candidate' | 'school' | 'admin' | 'super-admin' | 'group-admin'; // Add new role
   isVerified: boolean;
   isSuspended: boolean;
   profileCompleted: boolean;
@@ -44,7 +41,8 @@ export interface IUser extends Document {
   phoneOtp?: string;
   phoneOtpExpires?: Date;
   registrationFeePaid: boolean;
-  schoolDetails?: typeof SchoolDetailsSchema; // Embed school details directly
+  schoolDetails?: typeof SchoolDetailsSchema;
+  organization?: mongoose.Schema.Types.ObjectId; // Link to parent organization
   passwordResetToken?: string;
   passwordResetExpires?: Date;
   comparePassword(enteredPassword: string): Promise<boolean>;
@@ -57,7 +55,7 @@ const UserSchema: Schema<IUser> = new Schema(
     email: { type: String, required: true, unique: true },
     phone: { type: String, required: true, unique: true, sparse: true },
     password: { type: String, required: true, minlength: 6, select: false },
-    role: { type: String, enum: ['candidate', 'school', 'admin', 'super-admin'], required: true },
+    role: { type: String, enum: ['candidate', 'school', 'admin', 'super-admin', 'group-admin'], required: true }, // Add new role
     isVerified: { type: Boolean, default: false },
     isSuspended: { type: Boolean, default: false },
     profileCompleted: { type: Boolean, default: false },
@@ -70,14 +68,14 @@ const UserSchema: Schema<IUser> = new Schema(
     phoneOtpExpires: Date,
     registrationFeePaid: { type: Boolean, default: false },
     schoolDetails: { type: SchoolDetailsSchema, required: function(this: IUser) { return this.role === 'school'; } },
+    organization: { type: Schema.Types.ObjectId, ref: 'Organization' }, // Add field
     passwordResetToken: String,
     passwordResetExpires: Date,
   },
   { timestamps: true }
 );
 
-// ... (pre-save hooks, methods, etc., remain the same)
-
+// ... (pre-save hooks and methods remain the same)
 UserSchema.pre<IUser>('save', async function (next) {
   if (!this.isModified('password') || !this.password) {
     return next();

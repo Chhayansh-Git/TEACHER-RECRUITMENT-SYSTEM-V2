@@ -1,5 +1,4 @@
-// src/pages/school/SchoolProfilePage.tsx
-
+// chhayansh-git/teacher-recruitment-system-v2/TEACHER-RECRUITMENT-SYSTEM-V2-f3d22d9e27ee0839a3c93ab1d4f580b31df39678/client/src/pages/school/SchoolProfilePage.tsx
 import { useEffect, useState, useRef } from 'react';
 import { useForm, Controller, type SubmitHandler } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,7 +14,6 @@ import PhotoCamera from '@mui/icons-material/PhotoCamera';
 
 const API_BASE_URL = 'http://localhost:5001';
 
-// Updated type to use a nested address object
 type SchoolProfileInputs = {
   address: {
     street: string;
@@ -91,11 +89,10 @@ export const SchoolProfilePage = () => {
 
     if (fileInputRef.current?.files?.[0]) {
       try {
-        const uploadResult = await pictureMutation.mutateAsync(fileInputref.current.files[0]);
+        const uploadResult = await pictureMutation.mutateAsync(fileInputRef.current.files[0]);
         newPictureUrl = uploadResult.profilePictureUrl;
       } catch (error) {
         toast.error("Picture upload failed.");
-        console.error("Picture upload failed", error);
         return;
       }
     }
@@ -109,10 +106,9 @@ export const SchoolProfilePage = () => {
         }
         queryClient.invalidateQueries({ queryKey: ['schoolProfile'] });
         toast.success("Profile saved successfully!");
-        navigate('/dashboard');
+        navigate('/school/profile'); // Navigate back to the view page on success
     } catch (error) {
         toast.error("Failed to update profile.");
-        console.error("Profile update failed", error);
     }
   };
 
@@ -120,14 +116,10 @@ export const SchoolProfilePage = () => {
 
   return (
     <Paper sx={{ p: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4" gutterBottom>
-          Manage School Profile
-        </Typography>
-        <Button component={RouterLink} to="/dashboard">
-          Skip for now
-        </Button>
-      </Box>
+      {/* --- HEADER CLEANUP --- */}
+      <Typography variant="h4" gutterBottom>
+        Manage School Profile
+      </Typography>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 4 }}>
         <input
@@ -157,7 +149,6 @@ export const SchoolProfilePage = () => {
             <Controller name="directorName" control={control} rules={{ required: 'Director name is required' }} render={({ field }) => <TextField {...field} label="Director Name" fullWidth error={!!errors.directorName} helperText={errors.directorName?.message} />} />
           </Grid>
           
-          {/* --- UPDATED STRUCTURED ADDRESS FIELDS --- */}
           <Grid item xs={12}>
             <Controller name="address.street" control={control} rules={{ required: 'Street Address is required' }} render={({ field }) => <TextField {...field} label="Street Address" fullWidth error={!!errors.address?.street} helperText={errors.address?.street?.message} />} />
           </Grid>
@@ -183,10 +174,17 @@ export const SchoolProfilePage = () => {
           {(profileMutation.isError || pictureMutation.isError) && (
             <Grid item xs={12}><Alert severity="error">Failed to update profile. Please try again.</Alert></Grid>
           )}
+
+          {/* --- ACTION BUTTONS WITH CANCEL BUTTON --- */}
           <Grid item xs={12}>
-            <Button type="submit" variant="contained" disabled={profileMutation.isPending || pictureMutation.isPending}>
-              {(profileMutation.isPending || pictureMutation.isPending) ? <CircularProgress size={24} /> : 'Save Profile'}
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button type="submit" variant="contained" disabled={profileMutation.isPending || pictureMutation.isPending}>
+                {(profileMutation.isPending || pictureMutation.isPending) ? <CircularProgress size={24} /> : 'Save Profile'}
+                </Button>
+                <Button variant="outlined" component={RouterLink} to="/school/profile">
+                    Cancel
+                </Button>
+            </Box>
           </Grid>
         </Grid>
       </form>

@@ -1,5 +1,4 @@
-// seeder/planSeeder.ts
-
+// chhayansh-git/teacher-recruitment-system-v2/TEACHER-RECRUITMENT-SYSTEM-V2-f3d22d9e27ee0839a3c93ab1d4f580b31df39678/server/src/seeder/planSeeder.ts
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Plan from '../models/plan.model';
@@ -20,14 +19,38 @@ const plans = [
   {
     name: 'Basic',
     price: 0,
-    durationInDays: 30,
-    features: ['Post up to 3 jobs', 'View up to 10 pushed candidates', 'Basic Support'],
+    annualPrice: 0,
+    features: [ /* ... */ ],
+    maxJobs: 1,
+    maxUsers: 1,
+    candidateMatchesLimit: 5,
+    canViewFullProfile: false,
+    weeklyProfileViews: 5, // 5 free views per week
+    hasAdvancedAnalytics: false,
   },
   {
     name: 'Premium',
+    price: 1999,
+    annualPrice: 19999,
+    features: [ /* ... */ ],
+    maxJobs: 5,
+    maxUsers: 5,
+    candidateMatchesLimit: -1,
+    canViewFullProfile: true,
+    weeklyProfileViews: -1, // -1 signifies unlimited
+    hasAdvancedAnalytics: true,
+  },
+  {
+    name: 'Enterprise',
     price: 4999,
-    durationInDays: 90,
-    features: ['Post unlimited jobs', 'View unlimited pushed candidates', 'Priority Support', 'School Profile Highlighting'],
+    annualPrice: 49999,
+    features: [ /* ... */ ],
+    maxJobs: -1,
+    maxUsers: -1,
+    candidateMatchesLimit: -1,
+    canViewFullProfile: true,
+    weeklyProfileViews: -1, // -1 signifies unlimited
+    hasAdvancedAnalytics: true,
   },
 ];
 

@@ -1,5 +1,4 @@
-// src/components/layout/DashboardLayout.tsx
-
+// chhayansh-git/teacher-recruitment-system-v2/TEACHER-RECRUITMENT-SYSTEM-V2-f3d22d9e27ee0839a3c93ab1d4f580b31df39678/client/src/components/layout/DashboardLayout.tsx
 import { useState } from 'react';
 import { Outlet, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux.hooks';
@@ -27,7 +26,6 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
-import AddIcon from '@mui/icons-material/Add';
 import ArticleIcon from '@mui/icons-material/Article';
 import WorkIcon from '@mui/icons-material/Work';
 import PeopleIcon from '@mui/icons-material/People';
@@ -40,7 +38,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
-import RedEnvelopeIcon from '@mui/icons-material/CardGiftcard'; // Using a representative icon for offers
+import RedEnvelopeIcon from '@mui/icons-material/CardGiftcard';
 
 const drawerWidth = 240;
 const API_BASE_URL = 'http://localhost:5001';
@@ -116,12 +114,14 @@ export const DashboardLayout = () => {
                     <ListItemText primary="View Profile" />
                 </ListItemButton>
             </ListItem>
+            {/* THIS LINK IS REMOVED
             <ListItem disablePadding component={RouterLink} to="/school/requirements/new">
               <ListItemButton>
                 <ListItemIcon><AddIcon /></ListItemIcon>
                 <ListItemText primary="Post a Job" />
               </ListItemButton>
             </ListItem>
+            */}
             <ListItem disablePadding component={RouterLink} to="/school/requirements">
               <ListItemButton>
                 <ListItemIcon><ArticleIcon /></ListItemIcon>

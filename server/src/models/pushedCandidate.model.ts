@@ -8,9 +8,11 @@ export interface IPushedCandidate extends Document {
   school: mongoose.Schema.Types.ObjectId;
   status: 'pushed' | 'viewed' | 'shortlisted' | 'interview scheduled' | 'offer sent' | 'hired' | 'rejected'; // Add new statuses
   shortlistedAt?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-const PushedCandidateSchema: Schema<IPushedCandidate> = new Schema({
+const PushedCandidateSchema = new mongoose.Schema<IPushedCandidate>({
   requirement: {
     type: mongoose.Schema.Types.ObjectId,
     required: true,
@@ -32,9 +34,7 @@ const PushedCandidateSchema: Schema<IPushedCandidate> = new Schema({
     default: 'pushed',
   },
   shortlistedAt: { type: Date },
-}, {
-  timestamps: true,
-});
+}, { timestamps: true });
 
 PushedCandidateSchema.index({ requirement: 1, candidate: 1 }, { unique: true });
 

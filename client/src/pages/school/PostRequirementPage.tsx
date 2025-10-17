@@ -1,6 +1,5 @@
-// src/pages/school/PostRequirementPage.tsx
-
-import { useNavigate } from 'react-router-dom';
+// chhayansh-git/teacher-recruitment-system-v2/TEACHER-RECRUITMENT-SYSTEM-V2-f3d22d9e27ee0839a3c93ab1d4f580b31df39678/client/src/pages/school/PostRequirementPage.tsx
+import { useNavigate, Link as RouterLink } from 'react-router-dom'; // Import RouterLink
 import { useForm, Controller } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
@@ -24,6 +23,7 @@ import {
   Box,
 } from '@mui/material';
 
+// ... (type definitions and options remain the same)
 type RequirementFormInputs = {
   title: string;
   description: string;
@@ -37,10 +37,10 @@ type RequirementFormInputs = {
   benefits: string[];
 };
 
-// Predefined options for our dropdowns and tags
 const experienceOptions = ['0-1 years', '1-3 years', '3-5 years', '5+ years'];
 const qualificationOptions = ['B.Ed', 'M.Ed', 'PhD', 'TET Qualified', 'CTET Qualified'];
 const benefitOptions = ['Health Insurance', 'Provident Fund (PF)', 'Paid Time Off', 'Maternity Leave'];
+
 
 const postRequirement = async (data: RequirementFormInputs) => {
   const token = localStorage.getItem('token');
@@ -86,6 +86,7 @@ export const PostRequirementPage = () => {
       <Typography variant="h4" gutterBottom>Post a New Job Requirement</Typography>
       <form onSubmit={handleSubmit(onSubmit)}>
         <Stack spacing={3}>
+          {/* ... (All the form fields remain exactly the same) ... */}
           <Box>
             <Controller
               name="title"
@@ -227,15 +228,20 @@ export const PostRequirementPage = () => {
             />
           </Box>
 
+
           {mutation.status === 'error' && (
             <Box>
               <Alert severity="error">Failed to post requirement. Please try again.</Alert>
             </Box>
           )}
 
-          <Box>
+          {/* --- ACTION BUTTONS WITH CANCEL --- */}
+          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
             <Button type="submit" variant="contained" color="primary" disabled={isSubmitting}>
               {isSubmitting ? <CircularProgress size={24} /> : 'Post Requirement'}
+            </Button>
+            <Button variant="outlined" component={RouterLink} to="/school/requirements">
+              Cancel
             </Button>
           </Box>
         </Stack>

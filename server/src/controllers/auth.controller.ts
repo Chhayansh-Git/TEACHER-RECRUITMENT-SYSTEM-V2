@@ -1,23 +1,23 @@
-// src/controllers/auth.controller.ts
-
+// chhayansh-git/teacher-recruitment-system-v2/TEACHER-RECRUITMENT-SYSTEM-V2-f3d22d9e27ee0839a3c93ab1d4f580b31df39678/server/src/controllers/auth.controller.ts
 import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import crypto from 'crypto';
+import { Types } from 'mongoose';
 import User from '../models/user.model';
+import Plan from '../models/plan.model'; // Import Plan model
+import Subscription from '../models/subscription.model'; // Import Subscription model
 import generateToken from '../utils/generateToken';
 import sendEmail from '../utils/sendEmail';
 import sendSms from '../utils/sendSms';
-import { Types } from 'mongoose';
 
 // --- Helper Functions ---
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const sendOtpEmail = async (email: string, otp: string) => {
-    // This function is now using your updated sendEmail utility
     await sendEmail({
         to: email,
-        subject: 'Your TeacherRecruit Verification Code',
-        html: `<h1>Email Verification</h1><p>Your verification code for TeacherRecruit is: <strong>${otp}</strong></p><p>This code will expire in 10 minutes.</p>`
+        templateKey: 'email-verification-otp',
+        payload: { otp }
     });
 };
 
@@ -32,35 +32,46 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, phone, password, role, ...schoolDetails } = req.body;
   
   const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
-  if (existingUser && (existingUser.isEmailVerified || existingUser.isPhoneVerified)) {
+  if (existingUser && (existingUser.isVerified)) {
     res.status(400);
-    throw new Error('A user with this email or phone number already exists.');
+    throw new Error('A verified user with this email or phone number already exists.');
   }
 
-  let user = existingUser || new User();
+  // Use the existing unverified user or create a new one
+  const user = existingUser || new User();
 
-  if (!existingUser) {
-    if (role === 'school') {
-      const schoolCount = await User.countDocuments({ role: 'school' });
-      user.registrationFeePaid = schoolCount < 200;
-    } else {
-      user.registrationFeePaid = true;
-    }
-  }
-
-  // --- THIS IS THE NEW UNIFIED LOGIC ---
-  user.name = name;
-  user.email = email;
-  user.phone = phone;
-  user.password = password;
-  user.role = role;
+  // Set/update user properties
+  user.set({
+    name,
+    email,
+    phone,
+    password,
+    role,
+  });
   
-  // If the role is school, attach the detailed school information
   if (role === 'school') {
       user.schoolDetails = schoolDetails;
-      user.profileCompleted = true; // Mark profile as complete from the start
+      user.profileCompleted = true;
   }
 
+  // --- NEW SUBSCRIPTION LOGIC FOR NEW SCHOOLS ---
+  if (!user.isNew && user.role !== 'school') {
+    // If user exists but is not a school, just continue
+  } else if (user.isNew && role === 'school') {
+    const schoolCount = await User.countDocuments({ role: 'school' });
+    
+    if (schoolCount < 200) {
+        // Early Adopter: Waive fee and grant 1-year Premium trial
+        user.registrationFeePaid = true;
+        // The subscription will be created *after* the user is saved to get an ID
+    } else {
+        // Standard Registration: Fee required
+        user.registrationFeePaid = false;
+    }
+  } else if (user.isNew && role !== 'school') {
+    user.registrationFeePaid = true; // Not applicable to candidates
+  }
+  
   const emailOtp = generateOtp();
   user.emailOtp = emailOtp;
   user.emailOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
@@ -70,8 +81,28 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
   user.phoneOtp = phoneOtp;
   user.phoneOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
   user.isPhoneVerified = false;
+  user.isVerified = false; // Reset verification status on re-registration attempt
 
   await user.save();
+
+  // --- CREATE FREE PREMIUM SUBSCRIPTION IF EARLY ADOPTER ---
+  if (user.role === 'school' && user.registrationFeePaid && !existingUser) { // only for brand new, fee-waived schools
+    const premiumPlan = await Plan.findOne({ name: 'Premium' });
+    if (premiumPlan) {
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setFullYear(startDate.getFullYear() + 1); // 1 year from now
+        
+        await Subscription.create({
+            school: user._id,
+            plan: premiumPlan._id,
+            startDate,
+            endDate,
+            status: 'active',
+        });
+        console.log(`Created 1-year Premium trial for early adopter school: ${user.name}`);
+    }
+  }
   
   const formattedPhone = `+91${phone}`;
   await sendOtpEmail(user.email, emailOtp);
@@ -86,26 +117,16 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-
-// ... (The rest of the file: verifyOtp, loginUser, resendOtp, forgotPassword, resetPassword remains the same as the last version you approved)
 const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
     const { email, emailOtp, phoneOtp } = req.body;
 
-    if (!email || !emailOtp || !phoneOtp) {
-        res.status(400);
-        throw new Error('Email and both OTPs are required.');
-    }
-
-    const trimmedEmailOtp = emailOtp.trim();
-    const trimmedPhoneOtp = phoneOtp.trim();
-    
     const user = await User.findOne({ 
         email, 
         emailOtpExpires: { $gt: Date.now() },
         phoneOtpExpires: { $gt: Date.now() },
     });
 
-    if (!user || user.emailOtp !== trimmedEmailOtp || user.phoneOtp !== trimmedPhoneOtp) {
+    if (!user || user.emailOtp !== emailOtp.trim() || user.phoneOtp !== phoneOtp.trim()) {
         res.status(400);
         throw new Error('Invalid or expired OTPs');
     }
@@ -117,11 +138,11 @@ const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
     user.isPhoneVerified = true;
     user.phoneOtp = undefined;
     user.phoneOtpExpires = undefined;
-
     user.isVerified = true;
     
     await user.save();
     
+    // This logic correctly handles both early adopters and standard registrations
     if (user.role === 'school' && !user.registrationFeePaid) {
         res.json({
             paymentRequired: true,
@@ -158,7 +179,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     }
     if (user.role === 'school' && !user.registrationFeePaid) {
         res.status(401);
-        throw new Error('Registration payment is pending. Cannot log in.');
+        throw new Error('Registration payment is pending. Please log in after completing the payment.');
     }
     
     res.json({
@@ -215,8 +236,12 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findOne({ email: req.body.email });
 
   if (!user) {
-    res.status(404);
-    throw new Error('There is no user with that email address.');
+    // To prevent email enumeration, we send a success response even if user is not found.
+    res.status(200).json({
+      status: 'success',
+      message: 'If an account with that email exists, a reset link has been sent.',
+    });
+    return;
   }
 
   const resetToken = user.createPasswordResetToken();
@@ -239,8 +264,6 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save({ validateBeforeSave: false });
-
-    console.error('FORGOT PASSWORD EMAIL ERROR:', err);
     throw new Error('There was an error sending the email. Try again later!');
   }
 });
