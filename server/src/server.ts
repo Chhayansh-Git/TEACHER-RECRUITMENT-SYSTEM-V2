@@ -1,4 +1,4 @@
-// src/server.ts
+// server/src/server.ts
 
 import express, { Express, Request, Response } from 'express';
 import dotenv from 'dotenv';
@@ -20,7 +20,8 @@ import planRoutes from './routes/plan.routes';
 import emailTemplateRoutes from './routes/emailTemplate.routes';
 import settingsRoutes from './routes/settings.routes';
 import reportRoutes from './routes/report.routes';
-import offerLetterRoutes from './routes/offerLetter.routes'; // Import the new routes
+import offerLetterRoutes from './routes/offerLetter.routes';
+import leadRoutes from './routes/lead.routes'; // Import the new lead routes
 
 dotenv.config();
 connectDB();
@@ -51,7 +52,8 @@ app.use('/api/plans', planRoutes);
 app.use('/api/email-templates', emailTemplateRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/offers', offerLetterRoutes); // Use the new routes
+app.use('/api/offers', offerLetterRoutes);
+app.use('/api/leads', leadRoutes); // Use the new lead routes
 
 // Global Error Handler
 app.use(errorHandler);

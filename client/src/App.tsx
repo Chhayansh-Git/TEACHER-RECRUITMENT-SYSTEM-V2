@@ -45,6 +45,7 @@ import { PushedCandidatesPage } from './pages/school/PushedCandidatesPage';
 import { SchoolProfilePage } from './pages/school/SchoolProfilePage';
 import { ViewSchoolProfilePage } from './pages/school/ViewSchoolProfilePage';
 import { SubscriptionPage } from './pages/school/SubscriptionPage';
+import { EnterpriseInterestPage } from './pages/school/EnterpriseInterestPage';
 
 // Admin Pages
 import { ManageCandidatesPage } from './pages/admin/ManageCandidatesPage';
@@ -114,6 +115,7 @@ function App() {
               <Route path="/school/requirements" element={<ViewRequirementsPage />} />
               <Route path="/school/pushed-candidates" element={<PushedCandidatesPage />} />
               <Route path="/school/subscription" element={<SubscriptionPage />} />
+              <Route path="/enterprise-interest" element={<EnterpriseInterestPage />} />
 
               {/* Admin Routes */}
               <Route path="/admin/candidates" element={<ManageCandidatesPage />} />

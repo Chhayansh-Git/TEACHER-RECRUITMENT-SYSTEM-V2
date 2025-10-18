@@ -1,4 +1,4 @@
-// chhayansh-git/teacher-recruitment-system-v2/TEACHER-RECRUITMENT-SYSTEM-V2-f3d22d9e27ee0839a3c93ab1d4f580b31df39678/server/src/controllers/auth.controller.ts
+// server/src/controllers/auth.controller.ts
 import { Request, Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import crypto from 'crypto';
@@ -6,108 +6,117 @@ import { Types } from 'mongoose';
 import User from '../models/user.model';
 import Plan from '../models/plan.model'; // Import Plan model
 import Subscription from '../models/subscription.model'; // Import Subscription model
+import Organization from '../models/organization.model'; // Import Organization model
 import generateToken from '../utils/generateToken';
 import sendEmail from '../utils/sendEmail';
-import sendSms from '../utils/sendSms';
+import sendSmsUtil from '../utils/sendSms';
 
-// --- Helper Functions ---
+// --- Helper Functions (remain the same) ---
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const sendOtpEmail = async (email: string, otp: string) => {
     await sendEmail({
         to: email,
-        templateKey: 'email-verification-otp',
+        templateKey: 'email-verification-otp', // Assuming this key exists
         payload: { otp }
     });
 };
 
-const sendOtpSms = async (phone: string, otp: string) => {
+const sendSms = async (phone: string, otp: string) => {
     const message = `Your TeacherRecruit verification code is: ${otp}`;
-    await sendSms({ to: phone, body: message });
+    await sendSmsUtil({ to: phone, body: message });
 };
-
 
 // --- Controller Functions ---
 const registerUser = asyncHandler(async (req: Request, res: Response) => {
-  const { name, email, phone, password, role, ...schoolDetails } = req.body;
+  const { name, email, phone, password, role, ...details } = req.body;
   
   const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
-  if (existingUser && (existingUser.isVerified)) {
+  if (existingUser && existingUser.isVerified) {
     res.status(400);
     throw new Error('A verified user with this email or phone number already exists.');
   }
 
-  // Use the existing unverified user or create a new one
   const user = existingUser || new User();
+  const isNewUser = user.isNew;
 
-  // Set/update user properties
-  user.set({
-    name,
-    email,
-    phone,
-    password,
-    role,
-  });
+  user.set({ name, email, phone, password, role });
   
   if (role === 'school') {
-      user.schoolDetails = schoolDetails;
+      user.schoolDetails = details;
       user.profileCompleted = true;
   }
 
-  // --- NEW SUBSCRIPTION LOGIC FOR NEW SCHOOLS ---
-  if (!user.isNew && user.role !== 'school') {
-    // If user exists but is not a school, just continue
-  } else if (user.isNew && role === 'school') {
-    const schoolCount = await User.countDocuments({ role: 'school' });
-    
-    if (schoolCount < 200) {
-        // Early Adopter: Waive fee and grant 1-year Premium trial
+  // --- NEW REGISTRATION & SUBSCRIPTION LOGIC ---
+  if (isNewUser) {
+    if (role === 'school') {
+        const schoolCount = await User.countDocuments({ role: 'school' });
+        
+        if (schoolCount < 200) {
+            // Early Adopter: Waive fee. Subscription will be created after user saves.
+            user.registrationFeePaid = true;
+        } else {
+            // Standard Registration: Fee required.
+            user.registrationFeePaid = false;
+        }
+    } else if (role === 'group-admin') {
+        // Group admins also have a registration fee logic
+        const groupCount = await User.countDocuments({ role: 'group-admin' });
+        // Let's say we offer a discount for the first 50 groups
+        user.registrationFeePaid = groupCount >= 50; 
+    } 
+    else {
+        // Candidates have no fee
         user.registrationFeePaid = true;
-        // The subscription will be created *after* the user is saved to get an ID
-    } else {
-        // Standard Registration: Fee required
-        user.registrationFeePaid = false;
     }
-  } else if (user.isNew && role !== 'school') {
-    user.registrationFeePaid = true; // Not applicable to candidates
   }
   
+  // Reset verification for any registration attempt
+  user.isEmailVerified = false;
+  user.isPhoneVerified = false;
+  user.isVerified = false;
   const emailOtp = generateOtp();
   user.emailOtp = emailOtp;
   user.emailOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
-  user.isEmailVerified = false;
-
   const phoneOtp = generateOtp();
   user.phoneOtp = phoneOtp;
   user.phoneOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
-  user.isPhoneVerified = false;
-  user.isVerified = false; // Reset verification status on re-registration attempt
 
   await user.save();
 
-  // --- CREATE FREE PREMIUM SUBSCRIPTION IF EARLY ADOPTER ---
-  if (user.role === 'school' && user.registrationFeePaid && !existingUser) { // only for brand new, fee-waived schools
-    const premiumPlan = await Plan.findOne({ name: 'Premium' });
-    if (premiumPlan) {
-        const startDate = new Date();
-        const endDate = new Date();
-        endDate.setFullYear(startDate.getFullYear() + 1); // 1 year from now
-        
-        await Subscription.create({
-            school: user._id,
-            plan: premiumPlan._id,
-            startDate,
-            endDate,
-            status: 'active',
-        });
-        console.log(`Created 1-year Premium trial for early adopter school: ${user.name}`);
-    }
+  // --- POST-SAVE ACTIONS ---
+  if (isNewUser) {
+      if (user.role === 'school' && user.registrationFeePaid) {
+          // Grant 1-year Premium trial to early adopter schools
+          const premiumPlan = await Plan.findOne({ name: 'Premium' });
+          if (premiumPlan) {
+              const startDate = new Date();
+              const endDate = new Date(startDate);
+              endDate.setFullYear(startDate.getFullYear() + 1);
+              
+              await Subscription.create({
+                  school: user._id,
+                  plan: premiumPlan._id,
+                  startDate,
+                  endDate,
+                  status: 'active',
+              });
+              console.log(`Created 1-year Premium trial for early adopter school: ${user.name}`);
+          }
+      } else if (user.role === 'group-admin') {
+          // Create the organization owned by this new group admin
+          await Organization.create({
+              name: details.organizationName || `${user.name}'s Group`,
+              owner: user._id,
+              schools: [],
+          });
+      }
   }
   
-  const formattedPhone = `+91${phone}`;
+  // Send OTPs
   await sendOtpEmail(user.email, emailOtp);
   if (phone) {
-    await sendOtpSms(formattedPhone, phoneOtp);
+    await sendSms(`+91${phone}`, phoneOtp);
   }
 
   res.status(201).json({
@@ -117,6 +126,8 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
+
+// ... (The rest of the controller functions: verifyOtp, loginUser, resendOtp, forgotPassword, resetPassword remain the same)
 const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
     const { email, emailOtp, phoneOtp } = req.body;
 
@@ -142,13 +153,12 @@ const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
     
     await user.save();
     
-    // This logic correctly handles both early adopters and standard registrations
-    if (user.role === 'school' && !user.registrationFeePaid) {
+    if ((user.role === 'school' || user.role === 'group-admin') && !user.registrationFeePaid) {
         res.json({
             paymentRequired: true,
             userId: user._id,
             email: user.email,
-            schoolName: user.name,
+            schoolName: user.name, // or organizationName
             message: 'Verification successful. Please complete the registration payment.'
         });
     } else {
@@ -177,7 +187,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
         res.status(401);
         throw new Error('Your account is not fully verified. Please complete the OTP verification process.');
     }
-    if (user.role === 'school' && !user.registrationFeePaid) {
+    if ((user.role === 'school' || user.role === 'group-admin') && !user.registrationFeePaid) {
         res.status(401);
         throw new Error('Registration payment is pending. Please log in after completing the payment.');
     }
@@ -226,7 +236,7 @@ const resendOtp = asyncHandler(async (req: Request, res: Response) => {
     const formattedPhone = `+91${user.phone}`;
     await sendOtpEmail(user.email, emailOtp);
     if (user.phone) {
-        await sendOtpSms(formattedPhone, phoneOtp);
+        await sendSms(formattedPhone, phoneOtp);
     }
     
     res.json({ message: 'New OTPs have been sent to your email and phone.' });
@@ -236,7 +246,6 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
   const user = await User.findOne({ email: req.body.email });
 
   if (!user) {
-    // To prevent email enumeration, we send a success response even if user is not found.
     res.status(200).json({
       status: 'success',
       message: 'If an account with that email exists, a reset link has been sent.',
