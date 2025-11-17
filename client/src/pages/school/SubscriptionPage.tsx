@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StarIcon from '@mui/icons-material/Star';
+import BusinessIcon from '@mui/icons-material/Business';
 import { PlanDetailsModal } from '../../components/school/PlanDetailsModal';
 import { useSubscription } from '../../hooks/useSubscription';
 
@@ -242,6 +243,23 @@ export const SubscriptionPage = () => {
     setIsModalOpen(true);
   };
 
+  // --- NEW LOGIC FOR MANAGED SCHOOLS ---
+  if (userInfo?.role === 'school' && userInfo.organization) {
+    return (
+        <Box sx={{ maxWidth: '800px', mx: 'auto', p: 4 }}>
+            <Paper sx={{ p: 4, textAlign: 'center' }}>
+                <BusinessIcon color="primary" sx={{ fontSize: 60, mb: 2 }}/>
+                <Typography variant="h4" gutterBottom>Subscription Managed by Organization</Typography>
+                <Alert severity="info" sx={{ textAlign: 'left', mt: 2 }}>
+                    Your school is part of the <strong>{userInfo.organization.name}</strong> group. All subscription and billing details are managed by your group administrator.
+                    Your account currently has access to all the features of the <strong>Enterprise Plan</strong>.
+                </Alert>
+            </Paper>
+        </Box>
+    );
+  }
+
+  // --- EXISTING LOGIC FOR INDEPENDENT SCHOOLS & GROUP ADMINS ---
   if (isLoadingPlans || isLoadingMyPlan) return <CircularProgress />;
   if (isErrorPlans) return <Alert severity="error">Could not load subscription plans.</Alert>;
 
@@ -268,7 +286,6 @@ export const SubscriptionPage = () => {
           </Typography>
         </Box>
 
-        {/* Equal height responsive layout */}
         <Box
           sx={{
             display: 'flex',

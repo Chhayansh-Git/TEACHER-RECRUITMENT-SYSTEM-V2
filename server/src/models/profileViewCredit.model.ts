@@ -1,3 +1,4 @@
+// server/src/models/profileViewCredit.model.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IUser } from './user.model';
 
@@ -8,19 +9,19 @@ export interface IProfileViewCredit extends Document {
 }
 
 const ProfileViewCreditSchema: Schema<IProfileViewCredit> = new Schema({
-  school: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true, 
+  school: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
     unique: true // Each school gets one credit document
   },
-  viewsUsed: { 
-    type: Number, 
-    default: 0 
+  viewsUsed: {
+    type: Number,
+    default: 0
   },
-  weekStartDate: { 
-    type: Date, 
-    required: true 
+  weekStartDate: {
+    type: Date,
+    required: true
   },
 }, { timestamps: true });
 

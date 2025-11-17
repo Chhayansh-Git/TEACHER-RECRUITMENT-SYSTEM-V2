@@ -2,6 +2,12 @@
 
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
+// Define the shape of the organization object
+interface OrganizationInfo {
+    _id: string;
+    name: string;
+}
+
 // Define the shape of the user info we'll store
 interface UserInfo {
   _id: string;
@@ -12,6 +18,7 @@ interface UserInfo {
   isPhoneVerified?: boolean; // Add this property
   profileCompleted: boolean;
   profilePictureUrl?: string;
+  organization?: OrganizationInfo;
 }
 
 // Define the shape of our authentication state

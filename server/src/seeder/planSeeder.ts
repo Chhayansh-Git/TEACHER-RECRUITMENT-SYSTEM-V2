@@ -1,3 +1,4 @@
+// server/src/seeder/planSeeder.ts
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import Plan from '../models/plan.model';
@@ -49,15 +50,15 @@ const plans = [
     ],
     maxJobs: 5,
     maxUsers: 5,
-    candidateMatchesLimit: -1,
+    candidateMatchesLimit: -1, // -1 signifies unlimited
     canViewFullProfile: true,
-    weeklyProfileViews: -1,
+    weeklyProfileViews: -1, // -1 signifies unlimited
     hasAdvancedAnalytics: true,
   },
   {
     name: 'Enterprise',
-    price: 4999,
-    annualPrice: 49999,
+    price: 4999, // Note: This is a placeholder base price per school/month
+    annualPrice: 49999, // Placeholder annual price per school
     features: [
         'Unlimited Active Job Postings',
         'Centralized Dashboard for School Groups',
@@ -66,11 +67,11 @@ const plans = [
         'Dedicated Account Manager & Phone Support',
         'All Premium Features Included',
     ],
-    maxJobs: -1,
-    maxUsers: -1,
-    candidateMatchesLimit: -1,
+    maxJobs: -1, // -1 signifies unlimited
+    maxUsers: -1, // -1 signifies unlimited
+    candidateMatchesLimit: -1, // -1 signifies unlimited
     canViewFullProfile: true,
-    weeklyProfileViews: -1,
+    weeklyProfileViews: -1, // -1 signifies unlimited
     hasAdvancedAnalytics: true,
   },
 ];

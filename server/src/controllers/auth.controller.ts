@@ -4,9 +4,9 @@ import asyncHandler from 'express-async-handler';
 import crypto from 'crypto';
 import { Types } from 'mongoose';
 import User from '../models/user.model';
-import Plan from '../models/plan.model'; // Import Plan model
-import Subscription from '../models/subscription.model'; // Import Subscription model
-import Organization from '../models/organization.model'; // Import Organization model
+import Plan from '../models/plan.model';
+import Subscription from '../models/subscription.model';
+import Organization from '../models/organization.model';
 import generateToken from '../utils/generateToken';
 import sendEmail from '../utils/sendEmail';
 import sendSmsUtil from '../utils/sendSms';
@@ -17,7 +17,7 @@ const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString()
 const sendOtpEmail = async (email: string, otp: string) => {
     await sendEmail({
         to: email,
-        templateKey: 'email-verification-otp', // Assuming this key exists
+        templateKey: 'email-verification-otp',
         payload: { otp }
     });
 };
@@ -44,7 +44,8 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
   
   if (role === 'school') {
       user.schoolDetails = details;
-      user.profileCompleted = true;
+      // Profile is considered complete on registration for schools
+      user.profileCompleted = true; 
   }
 
   // --- NEW REGISTRATION & SUBSCRIPTION LOGIC ---
@@ -52,21 +53,18 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
     if (role === 'school') {
         const schoolCount = await User.countDocuments({ role: 'school' });
         
+        // Early Adopter Program: First 200 schools get their fee waived.
         if (schoolCount < 200) {
-            // Early Adopter: Waive fee. Subscription will be created after user saves.
             user.registrationFeePaid = true;
         } else {
-            // Standard Registration: Fee required.
             user.registrationFeePaid = false;
         }
     } else if (role === 'group-admin') {
-        // Group admins also have a registration fee logic
-        const groupCount = await User.countDocuments({ role: 'group-admin' });
-        // Let's say we offer a discount for the first 50 groups
-        user.registrationFeePaid = groupCount >= 50; 
-    } 
-    else {
-        // Candidates have no fee
+        // Group admins have a separate registration fee, also with an early adopter program.
+        const groupCount = await Organization.countDocuments();
+        // The discount logic will be handled in the payment controller, but payment is still required.
+        user.registrationFeePaid = false;
+    } else { // Candidates
         user.registrationFeePaid = true;
     }
   }
@@ -116,6 +114,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
   // Send OTPs
   await sendOtpEmail(user.email, emailOtp);
   if (phone) {
+    // Assuming phone numbers from India
     await sendSms(`+91${phone}`, phoneOtp);
   }
 
@@ -127,7 +126,7 @@ const registerUser = asyncHandler(async (req: Request, res: Response) => {
 });
 
 
-// ... (The rest of the controller functions: verifyOtp, loginUser, resendOtp, forgotPassword, resetPassword remain the same)
+// ... (verifyOtp, loginUser, resendOtp, forgotPassword, resetPassword remain functionally the same)
 const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
     const { email, emailOtp, phoneOtp } = req.body;
 
@@ -158,7 +157,8 @@ const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
             paymentRequired: true,
             userId: user._id,
             email: user.email,
-            schoolName: user.name, // or organizationName
+            name: user.name,
+            role: user.role,
             message: 'Verification successful. Please complete the registration payment.'
         });
     } else {
@@ -180,7 +180,9 @@ const verifyOtp = asyncHandler(async (req: Request, res: Response) => {
 
 const loginUser = asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email }).select('+password');
+  
+  // Populate organization details if they exist when logging in
+  const user = await User.findOne({ email }).populate('organization', 'name').select('+password');
 
   if (user && (await user.comparePassword(password))) {
     if (!user.isVerified) {
@@ -189,9 +191,10 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
     }
     if ((user.role === 'school' || user.role === 'group-admin') && !user.registrationFeePaid) {
         res.status(401);
-        throw new Error('Registration payment is pending. Please log in after completing the payment.');
+        throw new Error('Registration payment is pending. Please complete the payment to log in.');
     }
     
+    // The user object now contains the populated organization name if it exists
     res.json({
       _id: user._id,
       name: user.name,
@@ -201,6 +204,7 @@ const loginUser = asyncHandler(async (req: Request, res: Response) => {
       isPhoneVerified: user.isPhoneVerified,
       profileCompleted: user.profileCompleted,
       profilePictureUrl: user.profilePictureUrl,
+      organization: user.organization, // This will be included in the response
       token: generateToken(user._id as Types.ObjectId),
     });
   } else {
@@ -233,10 +237,9 @@ const resendOtp = asyncHandler(async (req: Request, res: Response) => {
 
     await user.save();
 
-    const formattedPhone = `+91${user.phone}`;
     await sendOtpEmail(user.email, emailOtp);
     if (user.phone) {
-        await sendSms(formattedPhone, phoneOtp);
+        await sendSms(`+91${user.phone}`, phoneOtp);
     }
     
     res.json({ message: 'New OTPs have been sent to your email and phone.' });
@@ -264,11 +267,7 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
       templateKey: 'forgot-password-link',
       payload: { resetURL },
     });
-
-    res.status(200).json({
-      status: 'success',
-      message: 'Token sent to email!',
-    });
+    res.status(200).json({ status: 'success', message: 'Token sent to email!' });
   } catch (err) {
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
@@ -278,11 +277,7 @@ const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
 });
 
 const resetPassword = asyncHandler(async (req: Request, res: Response) => {
-  const hashedToken = crypto
-    .createHash('sha256')
-    .update(req.params.token)
-    .digest('hex');
-
+  const hashedToken = crypto.createHash('sha256').update(req.params.token).digest('hex');
   const user = await User.findOne({
     passwordResetToken: hashedToken,
     passwordResetExpires: { $gt: Date.now() },
@@ -298,10 +293,7 @@ const resetPassword = asyncHandler(async (req: Request, res: Response) => {
   user.passwordResetExpires = undefined;
   await user.save();
 
-  res.status(200).json({
-    status: 'success',
-    message: 'Password reset successfully!',
-  });
+  res.status(200).json({ status: 'success', message: 'Password reset successfully!' });
 });
 
 export { registerUser, loginUser, verifyOtp, resendOtp, forgotPassword, resetPassword };

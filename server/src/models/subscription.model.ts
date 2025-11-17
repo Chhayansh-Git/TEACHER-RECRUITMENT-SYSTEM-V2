@@ -1,4 +1,4 @@
-// chhayansh-git/teacher-recruitment-system-v2/TEACHER-RECRUITMENT-SYSTEM-V2-f3d22d9e27ee0839a3c93ab1d4f580b31df39678/server/src/models/subscription.model.ts
+// server/src/models/subscription.model.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface ISubscription extends Document {

@@ -1,3 +1,4 @@
+// server/src/models/organization.model.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IUser } from './user.model';
 
@@ -10,20 +11,20 @@ export interface IOrganization extends Document {
 }
 
 const OrganizationSchema: Schema<IOrganization> = new Schema({
-  name: { 
-    type: String, 
+  name: {
+    type: String,
     required: [true, 'Organization name is required.'],
     trim: true,
   },
-  owner: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true, 
+  owner: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
     unique: true // An owner can only have one organization
   },
-  schools: [{ 
-    type: Schema.Types.ObjectId, 
-    ref: 'User' 
+  schools: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User'
   }],
 }, { timestamps: true });
 

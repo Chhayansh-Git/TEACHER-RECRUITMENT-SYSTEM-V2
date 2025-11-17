@@ -1,4 +1,4 @@
-// chhayansh-git/teacher-recruitment-system-v2/TEACHER-RECRUITMENT-SYSTEM-V2-f3d22d9e27ee0839a3c93ab1d4f580b31df39678/client/src/components/layout/DashboardLayout.tsx
+// client/src/components/layout/DashboardLayout.tsx
 import { useState } from 'react';
 import { Outlet, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../hooks/redux.hooks';
@@ -18,7 +18,8 @@ import {
   ListItemText,
   Toolbar,
   Typography,
-  Avatar
+  Avatar,
+  Chip
 } from '@mui/material';
 
 // MUI Icons
@@ -39,6 +40,9 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import FactCheckIcon from '@mui/icons-material/FactCheck';
 import RedEnvelopeIcon from '@mui/icons-material/CardGiftcard';
+import CorporateFareIcon from '@mui/icons-material/CorporateFare';
+import AnalyticsIcon from '@mui/icons-material/Analytics';
+import ChatIcon from '@mui/icons-material/Chat';
 
 const drawerWidth = 240;
 const API_BASE_URL = 'http://localhost:5001';
@@ -114,14 +118,6 @@ export const DashboardLayout = () => {
                     <ListItemText primary="View Profile" />
                 </ListItemButton>
             </ListItem>
-            {/* THIS LINK IS REMOVED
-            <ListItem disablePadding component={RouterLink} to="/school/requirements/new">
-              <ListItemButton>
-                <ListItemIcon><AddIcon /></ListItemIcon>
-                <ListItemText primary="Post a Job" />
-              </ListItemButton>
-            </ListItem>
-            */}
             <ListItem disablePadding component={RouterLink} to="/school/requirements">
               <ListItemButton>
                 <ListItemIcon><ArticleIcon /></ListItemIcon>
@@ -133,6 +129,30 @@ export const DashboardLayout = () => {
                 <ListItemIcon><HowToRegIcon /></ListItemIcon>
                 <ListItemText primary="Recommended" />
               </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding component={RouterLink} to="/school/subscription">
+              <ListItemButton>
+                <ListItemIcon><WorkspacePremiumIcon /></ListItemIcon>
+                <ListItemText primary="Subscription" />
+              </ListItemButton>
+            </ListItem>
+          </>
+        )}
+        
+        {/* --- Group Admin Links --- */}
+        {userInfo?.role === 'group-admin' && (
+          <>
+            <ListItem disablePadding component={RouterLink} to="/group-admin/manage-schools">
+                <ListItemButton>
+                    <ListItemIcon><CorporateFareIcon /></ListItemIcon>
+                    <ListItemText primary="Manage Schools" />
+                </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding component={RouterLink} to="/group-admin/analytics">
+                <ListItemButton>
+                    <ListItemIcon><AnalyticsIcon /></ListItemIcon>
+                    <ListItemText primary="Group Analytics" />
+                </ListItemButton>
             </ListItem>
             <ListItem disablePadding component={RouterLink} to="/school/subscription">
               <ListItemButton>
@@ -185,6 +205,16 @@ export const DashboardLayout = () => {
           </>
         )}
 
+        {/* Universal Chat Link for relevant roles */}
+        {(userInfo?.role === 'school' || userInfo?.role === 'group-admin') && (
+            <ListItem disablePadding component={RouterLink} to="/chat">
+              <ListItemButton>
+                <ListItemIcon><ChatIcon /></ListItemIcon>
+                <ListItemText primary="Messages" />
+              </ListItemButton>
+            </ListItem>
+        )}
+
         <ListItem disablePadding onClick={handleLogout}>
           <ListItemButton>
             <ListItemIcon><LogoutIcon /></ListItemIcon>
@@ -218,6 +248,16 @@ export const DashboardLayout = () => {
           <Typography variant="h6" noWrap component="div">
             Teacher Recruitment System
           </Typography>
+
+          {/* --- VISUAL INDICATOR FOR IN-GROUP SCHOOLS --- */}
+          {userInfo?.role === 'school' && userInfo.organization && (
+            <Chip 
+              label={`Part of: ${userInfo.organization.name}`} 
+              size="small"
+              sx={{ ml: 2, color: 'white', backgroundColor: 'rgba(255, 255, 255, 0.2)' }} 
+            />
+          )}
+
           <Box sx={{ flexGrow: 1 }} />
           <Avatar src={userInfo?.profilePictureUrl ? `${API_BASE_URL}${userInfo.profilePictureUrl}` : undefined}>
             {userInfo?.name.charAt(0)}

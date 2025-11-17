@@ -46,6 +46,14 @@ import { SchoolProfilePage } from './pages/school/SchoolProfilePage';
 import { ViewSchoolProfilePage } from './pages/school/ViewSchoolProfilePage';
 import { SubscriptionPage } from './pages/school/SubscriptionPage';
 import { EnterpriseInterestPage } from './pages/school/EnterpriseInterestPage';
+import { AcceptInvitationPage } from './pages/school/AcceptInvitationPage';
+
+// Group-Admin
+import { GroupRegistrationPage } from './pages/school/GroupRegistrationPage';
+import { GroupAdminDashboardPage } from './pages/group-admin/GroupAdminDashboard';
+import { ManageSchoolsPage } from './pages/group-admin/ManageSchoolsPage'; // Import the new page
+import { GroupAnalyticsPage } from './pages/group-admin/GroupAnalyticsPage';
+
 
 // Admin Pages
 import { ManageCandidatesPage } from './pages/admin/ManageCandidatesPage';
@@ -83,6 +91,7 @@ function App() {
           <Route path="/register" element={<RegistrationChoicePage />} />
           <Route path="/register/candidate" element={<RegistrationPage />} />
           <Route path="/register/school" element={<SchoolRegistrationPage />} />
+          <Route path="/register/group" element={<GroupRegistrationPage />} />
           <Route path="/verify-otp" element={<VerifyOtpPage />} />
           <Route path="/school-registration-payment" element={<RegistrationPaymentPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -92,6 +101,11 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<DashboardLayout />}> 
               <Route path="/dashboard" element={<Dashboard />} />
+
+              {/* Group Admin Routes */}
+              <Route path="/group-admin/dashboard" element={<GroupAdminDashboardPage />} />
+              <Route path="/group-admin/manage-schools" element={<ManageSchoolsPage />} />
+              <Route path="/group-admin/analytics" element={<GroupAnalyticsPage />} />
               
               {/* Dashboard Routes */}
               <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
@@ -116,6 +130,7 @@ function App() {
               <Route path="/school/pushed-candidates" element={<PushedCandidatesPage />} />
               <Route path="/school/subscription" element={<SubscriptionPage />} />
               <Route path="/enterprise-interest" element={<EnterpriseInterestPage />} />
+              <Route path="/accept-invitation/:token" element={<AcceptInvitationPage />} />
 
               {/* Admin Routes */}
               <Route path="/admin/candidates" element={<ManageCandidatesPage />} />

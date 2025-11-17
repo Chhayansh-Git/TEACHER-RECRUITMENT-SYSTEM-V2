@@ -6,7 +6,7 @@ export interface IPlan extends Document {
   price: number;
   annualPrice: number;
   features: string[];
-  
+
   // Feature Limits
   maxJobs: number;
   maxUsers: number;
@@ -21,7 +21,7 @@ const PlanSchema: Schema<IPlan> = new Schema({
   price: { type: Number, required: true },
   annualPrice: { type: Number, required: true },
   features: [{ type: String }],
-  
+
   maxJobs: { type: Number, required: true, default: 1 },
   maxUsers: { type: Number, required: true, default: 1 },
   candidateMatchesLimit: { type: Number, required: true, default: 5 },

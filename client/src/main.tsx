@@ -1,18 +1,20 @@
-// src/main.tsx
-
+// client/src/main.tsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { Provider } from 'react-redux'; // Import the Provider
-import { store } from './app/store'; // Import our store
+import { Provider } from 'react-redux';
+import { store } from './app/store';
 import App from './App';
 import './index.css';
+import { SocketContextProvider } from './context/SocketContext'; // Import the provider
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <Provider store={store}> {/* Wrap the App in the Provider */}
+    <Provider store={store}>
       <BrowserRouter>
-        <App />
+        <SocketContextProvider> {/* Wrap App with the context provider */}
+          <App />
+        </SocketContextProvider>
       </BrowserRouter>
     </Provider>
   </React.StrictMode>

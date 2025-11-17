@@ -1,4 +1,4 @@
-// seeder/emailTemplateSeeder.ts
+// server/src/seeder/emailTemplateSeeder.ts
 
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
@@ -90,15 +90,14 @@ const templates = [
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
         <h2>Interview Response Received</h2>
         <p>Hello {{schoolName}},</p>
-        <p>The candidate, <strong>{{candidateName}}</strong>, has <strong>{{status}}</strong> your interview invitation for the interview scheduled on {{interviewDate}}.</p>
+        <p>The candidate, <strong>{{candidateName}}</strong>, has <strong>{{status}}</strong> your interview invitation.</p>
         <p>You can view the updated status on your dashboard.</p>
         <hr/>
         <p>Best regards,<br/>The TeacherRecruit Team</p>
       </div>
     `,
-    placeholders: ['schoolName', 'candidateName', 'status', 'interviewDate']
+    placeholders: ['schoolName', 'candidateName', 'status']
   },
-  // --- NEW TEMPLATES FOR OFFER LETTERS ---
   {
     key: 'offer-letter-sent-candidate',
     name: 'Offer Letter Sent (To Candidate)',
@@ -124,7 +123,7 @@ const templates = [
       <div style="font-family: Arial, sans-serif; line-height: 1.6;">
         <h2>Job Offer Response</h2>
         <p>Hello {{schoolName}},</p>
-        <p>The candidate, <strong>{{candidateName}}</strong>, has officially <strong>{{status}}</strong> your job offer for the <strong>{{jobTitle}}</strong> position.</p>
+        <p>The candidate, <strong>{{candidateName}}</strong>, has officially <strong>{{status}}d</strong> your job offer for the <strong>{{jobTitle}}</strong> position.</p>
         <p>You can view this update on your dashboard.</p>
         <hr/>
         <p>Best regards,<br/>The TeacherRecruit Team</p>
@@ -132,18 +131,67 @@ const templates = [
     `,
     placeholders: ['schoolName', 'candidateName', 'status', 'jobTitle']
   },
+
+  {
+    key: 'group-invitation-school',
+    name: 'Group Invitation (to School)',
+    subject: 'You are invited to join {{organizationName}} on TeacherRecruit',
+    body: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Invitation to Join {{organizationName}}</h2>
+        <p>Hello,</p>
+        <p>You have been invited to join the <strong>{{organizationName}}</strong> school group on the TeacherRecruit platform. Joining the group will allow your organization's administrator to manage billing and view aggregated analytics.</p>
+        <p>To accept this invitation, please click the link below:</p>
+        <p><a href="{{invitationURL}}" style="background-color: #1976d2; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px;" target="_blank">Accept Invitation</a></p>
+        <p>This invitation link is valid for 7 days.</p>
+        <p>If you did not expect this invitation, you can safely ignore this email.</p>
+        <hr/>
+        <p>Best regards,<br/>The TeacherRecruit Team</p>
+      </div>
+    `,
+    placeholders: ['organizationName', 'invitationURL']
+  },
+  
+  // --- NEW TEMPLATE FOR SALES TEAM ---
+  {
+    key: 'enterprise-lead-notification',
+    name: 'New Enterprise Lead (to Sales)',
+    subject: '🚀 New Enterprise Lead: {{organizationName}}',
+    body: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>High-Intent Enterprise Lead Captured</h2>
+        <p>A user has submitted the Enterprise Interest form on the website. Please follow up promptly.</p>
+        <h3>Lead Details:</h3>
+        <ul>
+          <li><strong>Contact Name:</strong> {{contactName}}</li>
+          <li><strong>Contact Email:</strong> {{contactEmail}}</li>
+          <li><strong>Contact Phone:</strong> {{contactPhone}}</li>
+          <li><strong>Organization Name:</strong> {{organizationName}}</li>
+          <li><strong>Number of Schools:</strong> {{numberOfSchools}}</li>
+        </ul>
+        <h3>Message/Notes:</h3>
+        <p style="padding: 10px; border: 1px solid #eee; background-color: #f9f9f9;">
+          {{message}}
+        </p>
+        <hr/>
+        <p>This is an automated notification from the TeacherRecruit platform.</p>
+      </div>
+    `,
+    placeholders: ['contactName', 'contactEmail', 'contactPhone', 'organizationName', 'numberOfSchools', 'message']
+  },
 ];
 
 const importData = async () => {
   try {
-    console.log('Clearing existing email templates...');
-    await EmailTemplate.deleteMany();
-    console.log('Importing new templates...');
-    await EmailTemplate.insertMany(templates);
-    console.log('Email Templates Imported Successfully!');
+    console.log('Syncing email templates...');
+    // Using updateOne with upsert to avoid duplicate key errors and allow easy updates
+    for (const template of templates) {
+      await EmailTemplate.updateOne({ key: template.key }, template, { upsert: true });
+    }
+    console.log('Email Templates Synced Successfully!');
     process.exit();
   } catch (error) {
-    console.error(`Error during data import: ${error}`);
+    console.error(`Error during data sync: ${error}`);
     process.exit(1);
   }
 };

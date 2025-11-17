@@ -1,3 +1,4 @@
+// server/src/models/lead.model.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { IUser } from './user.model';
 
@@ -20,27 +21,27 @@ export interface ILead extends Document {
 }
 
 const LeadSchema: Schema<ILead> = new Schema({
-  school: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true 
+  school: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
-  planOfInterest: { 
-    type: String, 
-    enum: ['Premium', 'Enterprise'], 
-    required: true 
+  planOfInterest: {
+    type: String,
+    enum: ['Premium', 'Enterprise'],
+    required: true
   },
-  interactionCount: { 
-    type: Number, 
-    default: 1 
+  interactionCount: {
+    type: Number,
+    default: 1
   },
-  status: { 
-    type: String, 
-    enum: ['active', 'contacted', 'converted', 'closed'], 
-    default: 'active' 
+  status: {
+    type: String,
+    enum: ['active', 'contacted', 'converted', 'closed'],
+    default: 'active'
   },
-  notes: { 
-    type: String 
+  notes: {
+    type: String
   },
   // --- Enterprise-specific fields ---
   contactPerson: {

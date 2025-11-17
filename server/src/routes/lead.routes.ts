@@ -8,11 +8,10 @@ import { authorizeRoles } from '../middleware/authorizeRoles.middleware';
 const router = express.Router();
 
 // School-facing route to track their clicks
-router.post('/track', protect, authorizeRoles('school'), trackSubscriptionInterest);
+router.post('/track', protect, authorizeRoles('school', 'group-admin'), trackSubscriptionInterest);
 
 // School-facing route for the detailed enterprise form
-router.post('/enterprise-interest', protect, authorizeRoles('school'), createEnterpriseLead);
-
+router.post('/enterprise-interest', protect, authorizeRoles('school', 'group-admin'), createEnterpriseLead);
 
 // Admin-facing route to view the leads
 router.get('/', protect, authorizeRoles('admin', 'super-admin'), getAllLeads);

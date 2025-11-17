@@ -26,7 +26,6 @@ const getActivePlanForUser = async (user: IUser): Promise<IPlan> => {
     if (!user || user.role !== 'school') {
         // For non-school roles, we can assume they don't have subscription limits.
         // We'll return a dummy "unlimited" plan object to let them pass checks.
-        // In a real-world scenario, you might have specific admin plans.
         return {
             name: 'Admin Access',
             maxJobs: -1,
@@ -85,7 +84,7 @@ export const attachSubscriptionPlan = asyncHandler(async (req: SubscriptionReque
 /**
  * A higher-order function that creates a "gatekeeper" middleware for specific features.
  * It checks the attached plan against the feature's limits.
- * @param feature The feature to check ('JOBS', 'VIEW_FULL_PROFILE', 'VIEW_ANALYTICS').
+ * @param feature The feature to check ('JOBS', 'VIEW_CANDIDATE_PROFILE', 'VIEW_ANALYTICS').
  */
 export const checkFeatureLimit = (feature: 'JOBS' | 'VIEW_CANDIDATE_PROFILE' | 'VIEW_ANALYTICS') => asyncHandler(async (req: SubscriptionRequest, res: Response, next: NextFunction) => {
     const plan = req.plan;
@@ -110,20 +109,16 @@ export const checkFeatureLimit = (feature: 'JOBS' | 'VIEW_CANDIDATE_PROFILE' | '
             break;
 
         case 'VIEW_CANDIDATE_PROFILE':
-            // If the plan allows unlimited full profile views, allow access immediately.
             if (plan.canViewFullProfile) {
                 return next();
             }
 
-            // --- METERED ACCESS LOGIC FOR BASIC PLAN ---
             const today = new Date();
-            // Get the last Sunday. The week starts on Sunday (day 0).
             const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay())); 
             startOfWeek.setHours(0, 0, 0, 0);
 
             let credit = await ProfileViewCredit.findOne({ school: user._id });
 
-            // If credit record doesn't exist or is for a previous week, reset it.
             if (!credit || credit.weekStartDate.getTime() !== startOfWeek.getTime()) {
                 credit = await ProfileViewCredit.findOneAndUpdate(
                     { school: user._id },
@@ -132,14 +127,11 @@ export const checkFeatureLimit = (feature: 'JOBS' | 'VIEW_CANDIDATE_PROFILE' | '
                 );
             }
 
-            // Check if the user has exceeded their weekly limit.
             if (!credit || credit.viewsUsed >= plan.weeklyProfileViews) {
-                res.status(403); // Forbidden
+                res.status(403);
                 throw new Error(`You have used all ${plan.weeklyProfileViews} of your free profile views for this week. Upgrade to a Premium plan for unlimited views.`);
             }
 
-            // --- IMPORTANT: Increment the view count AFTER the request is successful ---
-            // We use `res.on('finish', ...)` to ensure we only count a successful view (2xx status).
             res.on('finish', async () => {
                 if (res.statusCode >= 200 && res.statusCode < 300) {
                    await ProfileViewCredit.updateOne({ _id: credit?._id }, { $inc: { viewsUsed: 1 } });

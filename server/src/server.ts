@@ -4,6 +4,9 @@ import express, { Express, Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
+import http from 'http'; // Import http module
+import { Server } from 'socket.io'; // Import Server from socket.io
+
 import connectDB from './config/db';
 import errorHandler from './middleware/error.middleware';
 
@@ -21,13 +24,24 @@ import emailTemplateRoutes from './routes/emailTemplate.routes';
 import settingsRoutes from './routes/settings.routes';
 import reportRoutes from './routes/report.routes';
 import offerLetterRoutes from './routes/offerLetter.routes';
-import leadRoutes from './routes/lead.routes'; // Import the new lead routes
+import leadRoutes from './routes/lead.routes';
+import groupAdminRoutes from './routes/groupAdmin.routes';
+import chatRoutes from './routes/chat.routes'; // Import new chat routes
 
 dotenv.config();
 connectDB();
 
 const app: Express = express();
 const PORT = process.env.PORT || 5001;
+
+// --- WebSocket Server Setup ---
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173", // Your frontend URL
+    methods: ["GET", "POST"]
+  }
+});
 
 app.use(cors());
 app.use(express.json());
@@ -53,11 +67,25 @@ app.use('/api/email-templates', emailTemplateRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/offers', offerLetterRoutes);
-app.use('/api/leads', leadRoutes); // Use the new lead routes
+app.use('/api/leads', leadRoutes);
+app.use('/api/group-admin', groupAdminRoutes);
+app.use('/api/chat', chatRoutes); // Use the new chat routes
+
+// --- Socket.IO Connection Logic ---
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+
+  // Placeholder for joining rooms, sending messages etc.
+  
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
 
 // Global Error Handler
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+// Use the http server to listen, not the express app
+server.listen(PORT, () => {
   console.log(`[server]: Server is running at http://localhost:${PORT}`);
 });

@@ -10,7 +10,9 @@ import {
     getPublicCandidateProfile,
     getRequirementDetailsWithCandidates,
     getDashboardAnalytics,
-    getMyActivePlan
+    getMyActivePlan,
+    getInvitationDetails, 
+    acceptInvitation
 } from '../controllers/school.controller'; 
 import { protect } from '../middleware/auth.middleware';
 import { authorizeRoles } from '../middleware/authorizeRoles.middleware';
@@ -53,6 +55,10 @@ router.post('/interviews/schedule', protect, authorizeRoles('school'), scheduleI
 router.route('/profile')
   .get(protect, authorizeRoles('school'), getSchoolProfile)
   .put(protect, authorizeRoles('school'), updateSchoolProfile);
+
+// --- INVITATION ROUTES ---
+router.get('/invitation/:token', protect, authorizeRoles('school'), getInvitationDetails);
+router.post('/invitation/:token/accept', protect, authorizeRoles('school'), acceptInvitation);
 
 // This old stats route can be kept for now or removed later
 router.get('/stats', protect, authorizeRoles('school'), getDashboardStats);

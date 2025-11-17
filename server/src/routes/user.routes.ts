@@ -1,13 +1,15 @@
-// src/routes/user.routes.ts
+// server/src/routes/user.routes.ts
 
 import express from 'express';
 import { uploadProfilePicture, sendPhoneOtp, verifyPhoneOtp } from '../controllers/user.controller';
 import { protect } from '../middleware/auth.middleware';
-import upload from '../middleware/upload.middleware';
+// FIX: Use a named import for uploadAvatar
+import { uploadAvatar } from '../middleware/upload.middleware';
 
 const router = express.Router();
 
-router.put('/profile-picture', protect, upload.single('profilePicture'), uploadProfilePicture);
+// FIX: Use the correctly imported uploadAvatar middleware
+router.put('/profile-picture', protect, uploadAvatar.single('profilePicture'), uploadProfilePicture);
 
 // Add phone verification routes
 router.post('/send-phone-otp', protect, sendPhoneOtp);

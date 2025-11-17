@@ -4,7 +4,7 @@ import { Response } from 'express';
 import asyncHandler from 'express-async-handler';
 import Lead from '../models/lead.model';
 import { ProtectedRequest } from '../middleware/auth.middleware';
-import User from '../models/user.model'; // Import User model
+import sendEmail from '../utils/sendEmail';
 
 /**
  * @desc    Track a school's interest in a subscription plan (simple click tracking)
@@ -48,8 +48,6 @@ const createEnterpriseLead = asyncHandler(async (req: ProtectedRequest, res: Res
     const { name, email, phone, organizationName, numberOfSchools, message } = req.body;
     const schoolId = req.user?._id;
 
-    // Upsert logic: Find an existing active lead for this school, or create a new one.
-    // This prevents duplicate leads if a user fills out the form multiple times.
     const lead = await Lead.findOneAndUpdate(
         { school: schoolId, planOfInterest: 'Enterprise', status: 'active' },
         { 
@@ -59,13 +57,27 @@ const createEnterpriseLead = asyncHandler(async (req: ProtectedRequest, res: Res
             contactPerson: { name, email, phone },
             organizationName,
             numberOfSchools,
-            notes: message, // Use the 'notes' field for the message
-            $inc: { interactionCount: 1 } // Increment interaction count on form submission
+            notes: message,
+            $inc: { interactionCount: 1 }
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     
-    // Optional: Here you could trigger an email notification to your sales team.
+    // Notify the sales team
+    if (process.env.SALES_TEAM_EMAIL) {
+        await sendEmail({
+            to: process.env.SALES_TEAM_EMAIL,
+            templateKey: 'enterprise-lead-notification',
+            payload: {
+                contactName: name,
+                contactEmail: email,
+                contactPhone: phone,
+                organizationName,
+                numberOfSchools,
+                message: message || 'No message provided.'
+            }
+        });
+    }
     
     res.status(201).json({ message: 'Your interest has been registered. Our team will contact you shortly.' });
 });

@@ -11,6 +11,8 @@ import { ProtectedRequest } from '../middleware/auth.middleware';
 import { SubscriptionRequest } from '../middleware/subscription.middleware';
 import mongoose from 'mongoose';
 import OfferLetter from '../models/offerLetter.model';
+import Invitation from '../models/invitation.model';
+import Organization from '../models/organization.model';
 
 /**
  * @desc    Get all candidates pushed to the logged-in school, grouped by requirement
@@ -434,6 +436,66 @@ const getMyActivePlan = asyncHandler(async (req: SubscriptionRequest, res: Respo
     res.json(req.plan);
 });
 
+/**
+ * @desc    Get details of a pending invitation
+ * @route   GET /api/school/invitation/:token
+ * @access  Private/School
+ */
+const getInvitationDetails = asyncHandler(async (req: ProtectedRequest, res: Response) => {
+    const { token } = req.params;
+    const invitation = await Invitation.findOne({
+        token,
+        email: req.user!.email,
+        status: 'pending',
+        expires: { $gt: new Date() }
+    }).populate('organization', 'name');
+
+    if (!invitation) {
+        res.status(404);
+        throw new Error('Invitation not found, is invalid, or has expired.');
+    }
+
+    res.json(invitation);
+});
+
+/**
+ * @desc    Accept an invitation to join an organization
+ * @route   POST /api/school/invitation/:token/accept
+ * @access  Private/School
+ */
+  const acceptInvitation = asyncHandler(async (req: ProtectedRequest, res: Response) => {
+  const { token } = req.params;
+  const school = req.user!;
+
+  const invitation = await Invitation.findOne({
+      token,
+      email: school.email,
+      status: 'pending',
+      expires: { $gt: new Date() }
+  });
+
+  if (!invitation) {
+      res.status(404);
+      throw new Error('Invitation not found, is invalid, or has expired.');
+  }
+
+  // 1. Update the School User
+  school.organization = invitation.organization;
+  await school.save();
+
+  // 2. Update the Organization
+  await Organization.updateOne(
+      { _id: invitation.organization },
+      { $addToSet: { schools: school._id } } // $addToSet prevents duplicates
+  );
+
+  // 3. Update the Invitation status
+  invitation.status = 'accepted';
+  await invitation.save();
+
+  res.json({ message: 'Invitation accepted successfully. You are now part of the organization.' });
+});
+
 export { 
     getPushedCandidates,
     getPublicCandidateProfile,
@@ -444,5 +506,7 @@ export {
     getSchoolProfile, 
     updateSchoolProfile,
     getDashboardStats,
-    getMyActivePlan
+    getMyActivePlan,
+    acceptInvitation,
+    getInvitationDetails
 };
